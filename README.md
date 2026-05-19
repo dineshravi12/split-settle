@@ -18,9 +18,9 @@
 | Build | Maven, npm |
 
 ## 📁 Project Structure
-split-settle/
-├── api/           # Spring Boot backend
-└── split-settle/  # Angular frontend (in progress)
+  split-settle/
+            ├── api/           # Spring Boot backend
+            └── split-settle/  # Angular frontend (in progress)
 
 ## ⚙️ Backend Setup
 ### Prerequisites
