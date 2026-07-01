@@ -1,0 +1,230 @@
+<app-header></app-header>
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="page-container">
+  <div *ngIf="loading" class="loading-wrap">
+    <p-progressSpinner strokeWidth="3"></p-progressSpinner>
+  </div>
+
+  <ng-container *ngIf="!loading && group">
+    <h1 class="page-heading">{{ group.name }}</h1>
+
+    <section class="members-section">
+      <div class="section-row">
+        <h2 class="section-heading">Members</h2>
+        <button
+          pButton
+          type="button"
+          label="Add Member"
+          icon="pi pi-user-plus"
+          class="p-button-text"
+          (click)="openMemberDialog()"
+        ></button>
+      </div>
+      <div class="members-list">
+        <div *ngFor="let m of group.members" class="member-chip">
+          <div class="member-avatar gradient-avatar">
+            {{ m.name.charAt(0).toUpperCase() }}
+          </div>
+          <span class="member-name">{{ m.name }}</span>
+        </div>
+      </div>
+    </section>
+
+    <p-tabView>
+      <p-tabPanel header="Expenses">
+        <div class="tab-header-row">
+          <button
+            pButton
+            type="button"
+            label="Add Expense"
+            icon="pi pi-plus"
+            (click)="openExpenseDialog()"
+          ></button>
+        </div>
+
+        <div *ngIf="loadingExpenses" class="loading-wrap">
+          <p-progressSpinner strokeWidth="3"></p-progressSpinner>
+        </div>
+
+        <ng-container *ngIf="!loadingExpenses">
+          <div *ngIf="expenses.length === 0" class="empty-state">
+            <div class="icon"><i class="pi pi-wallet"></i></div>
+            <p>No expenses yet, add the first one</p>
+          </div>
+
+          <div *ngIf="expenses.length > 0" class="expense-list">
+            <div *ngFor="let e of expenses" class="expense-card">
+              <div class="expense-main">
+                <div class="expense-top">
+                  <span class="expense-desc">{{ e.description }}</span>
+                  <p-tag
+                    [value]="e.category"
+                    [severity]="categorySeverity(e.category)"
+                  ></p-tag>
+                </div>
+                <div class="expense-meta muted">
+                  Paid by {{ e.paidByName }} ·
+                  {{ e.createdAt | date: "MMM d, y" }}
+                </div>
+              </div>
+              <div class="expense-right">
+                <span class="expense-amount"
+                  >₹{{ e.amount | number: "1.2-2" }}</span
+                >
+                <button
+                  pButton
+                  type="button"
+                  icon="pi pi-trash"
+                  class="p-button-text p-button-danger"
+                  (click)="confirmDeleteExpense(e)"
+                ></button>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </p-tabPanel>
+
+      <p-tabPanel header="Settlements">
+        <div *ngIf="loadingSettlements" class="loading-wrap">
+          <p-progressSpinner strokeWidth="3"></p-progressSpinner>
+        </div>
+
+        <ng-container *ngIf="!loadingSettlements">
+          <div *ngIf="settlements.length === 0" class="empty-state">
+            <div class="icon"><i class="pi pi-check-circle"></i></div>
+            <p>All settled up! 🎉</p>
+          </div>
+
+          <div *ngIf="settlements.length > 0" class="settlement-list">
+            <div *ngFor="let s of settlements" [class]="settlementClass(s)">
+              <div class="settlement-text">{{ settlementText(s) }}</div>
+              <button
+                *ngIf="canSettle(s)"
+                pButton
+                type="button"
+                label="Settle Up"
+                icon="pi pi-check"
+                [loading]="isSettling(s)"
+                (click)="confirmSettle(s)"
+              ></button>
+            </div>
+          </div>
+        </ng-container>
+      </p-tabPanel>
+    </p-tabView>
+  </ng-container>
+</div>
+
+<p-dialog
+  header="Add Member"
+  [modal]="true"
+  [(visible)]="showMemberDialog"
+  [style]="{ width: '420px' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <form [formGroup]="memberForm" (ngSubmit)="addMember()" class="dialog-form">
+    <label for="memberEmail">Email</label>
+    <input
+      id="memberEmail"
+      type="email"
+      pInputText
+      formControlName="email"
+      placeholder="user@example.com"
+    />
+    <small
+      *ngIf="
+        memberForm.get('email')?.touched && memberForm.get('email')?.invalid
+      "
+      class="error-text"
+    >
+      Please enter a valid email
+    </small>
+
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        label="Cancel"
+        class="p-button-text"
+        (click)="closeMemberDialog()"
+      ></button>
+      <button
+        pButton
+        type="submit"
+        label="Add"
+        [loading]="addingMember"
+        [disabled]="memberForm.invalid"
+      ></button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog
+  header="Add Expense"
+  [modal]="true"
+  [(visible)]="showExpenseDialog"
+  [style]="{ width: '480px' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <form [formGroup]="expenseForm" (ngSubmit)="addExpense()" class="dialog-form">
+    <label for="expenseDesc">Description</label>
+    <input
+      id="expenseDesc"
+      type="text"
+      pInputText
+      formControlName="description"
+      placeholder="e.g. Dinner"
+    />
+
+    <label for="expenseAmount">Amount (₹)</label>
+    <p-inputNumber
+      id="expenseAmount"
+      formControlName="amount"
+      [min]="1"
+      mode="decimal"
+      [minFractionDigits]="0"
+      [maxFractionDigits]="2"
+    ></p-inputNumber>
+
+    <label for="expenseCategory">Category</label>
+    <p-dropdown
+      id="expenseCategory"
+      [options]="categoryOptions"
+      formControlName="category"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Select category"
+    ></p-dropdown>
+
+    <label for="expensePaidBy">Paid By</label>
+    <p-dropdown
+      id="expensePaidBy"
+      [options]="memberOptions"
+      formControlName="paidBy"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Select member"
+    ></p-dropdown>
+
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        label="Cancel"
+        class="p-button-text"
+        (click)="closeExpenseDialog()"
+      ></button>
+      <button
+        pButton
+        type="submit"
+        label="Add Expense"
+        [loading]="addingExpense"
+        [disabled]="expenseForm.invalid"
+      ></button>
+    </div>
+  </form>
+</p-dialog>

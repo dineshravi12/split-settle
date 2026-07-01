@@ -1,0 +1,77 @@
+<app-header></app-header>
+
+<div class="page-container">
+  <h1 class="page-heading">Dashboard</h1>
+
+  <div *ngIf="loading" class="loading-wrap">
+    <p-progressSpinner strokeWidth="3"></p-progressSpinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="stats-grid">
+      <div class="stat-card stat-total">
+        <span class="stat-icon"><i class="pi pi-users"></i></span>
+        <div>
+          <div class="stat-label">Total Groups</div>
+          <div class="stat-value">{{ totalGroups }}</div>
+        </div>
+      </div>
+      <div class="stat-card stat-owe">
+        <span class="stat-icon"><i class="pi pi-arrow-up-right"></i></span>
+        <div>
+          <div class="stat-label">You Owe</div>
+          <div class="stat-value">₹{{ totalYouOwe | number: "1.2-2" }}</div>
+        </div>
+      </div>
+      <div class="stat-card stat-owed">
+        <span class="stat-icon"><i class="pi pi-arrow-down-left"></i></span>
+        <div>
+          <div class="stat-label">Owed to You</div>
+          <div class="stat-value">₹{{ totalOwedToYou | number: "1.2-2" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-row">
+      <h2 class="section-heading">Recent Groups</h2>
+      <button
+        *ngIf="totalGroups > 0"
+        pButton
+        type="button"
+        label="View All"
+        class="p-button-text"
+        (click)="goToGroups()"
+      ></button>
+    </div>
+
+    <div *ngIf="recentGroups.length === 0" class="empty-state">
+      <div class="icon"><i class="pi pi-folder-open"></i></div>
+      <p>No groups yet</p>
+      <button
+        pButton
+        type="button"
+        label="Create Your First Group"
+        icon="pi pi-plus"
+        (click)="goToGroups()"
+      ></button>
+    </div>
+
+    <div *ngIf="recentGroups.length > 0" class="group-grid">
+      <div
+        *ngFor="let g of recentGroups"
+        class="group-card"
+        (click)="openGroup(g.id)"
+      >
+        <div class="group-avatar gradient-avatar">
+          {{ g.name.charAt(0).toUpperCase() }}
+        </div>
+        <div class="group-info">
+          <div class="group-name">{{ g.name }}</div>
+          <div class="group-members muted">
+            {{ g.members.length || 0 }} members
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

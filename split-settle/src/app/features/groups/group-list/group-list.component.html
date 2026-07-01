@@ -1,0 +1,94 @@
+<app-header></app-header>
+<p-toast></p-toast>
+
+<div class="page-container">
+  <div class="page-header-row">
+    <h1 class="page-heading">My Groups</h1>
+    <button
+      pButton
+      type="button"
+      label="New Group"
+      icon="pi pi-plus"
+      (click)="openDialog()"
+    ></button>
+  </div>
+
+  <div *ngIf="loading" class="loading-wrap">
+    <p-progressSpinner strokeWidth="3"></p-progressSpinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div *ngIf="groups.length === 0" class="empty-state">
+      <div class="icon"><i class="pi pi-folder-open"></i></div>
+      <p>You don't have any groups yet</p>
+      <button
+        pButton
+        type="button"
+        label="Create Your First Group"
+        icon="pi pi-plus"
+        (click)="openDialog()"
+      ></button>
+    </div>
+
+    <div *ngIf="groups.length > 0" class="group-grid">
+      <div
+        *ngFor="let g of groups"
+        class="group-card"
+        (click)="openGroup(g.id)"
+      >
+        <div class="group-avatar gradient-avatar">
+          {{ g.name.charAt(0).toUpperCase() }}
+        </div>
+        <div class="group-info">
+          <div class="group-name">{{ g.name }}</div>
+          <div class="group-members muted">
+            {{ g.members.length || 0 }} members
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>
+
+<p-dialog
+  header="Create New Group"
+  [modal]="true"
+  [(visible)]="showDialog"
+  [style]="{ width: '420px' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <form [formGroup]="groupForm" (ngSubmit)="createGroup()" class="dialog-form">
+    <label for="groupName">Group Name</label>
+    <input
+      id="groupName"
+      type="text"
+      pInputText
+      formControlName="name"
+      placeholder="e.g. Goa Trip"
+    />
+    <small
+      *ngIf="groupForm.get('name')?.touched && groupForm.get('name')?.invalid"
+      class="error-text"
+    >
+      Name must be at least 3 characters
+    </small>
+
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        label="Cancel"
+        class="p-button-text"
+        (click)="closeDialog()"
+      ></button>
+      <button
+        pButton
+        type="submit"
+        label="Create"
+        [loading]="submitting"
+        [disabled]="groupForm.invalid"
+      ></button>
+    </div>
+  </form>
+</p-dialog>

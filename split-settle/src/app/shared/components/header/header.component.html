@@ -1,0 +1,20 @@
+<p-toolbar styleClass="app-toolbar">
+  <ng-template pTemplate="start">
+    <button type="button" class="brand" (click)="goHome()">
+      Split &amp; Settle <span class="emoji">💸</span>
+    </button>
+  </ng-template>
+  <ng-template pTemplate="end">
+    <div class="user-area">
+      <span class="hi-user" *ngIf="userName">Hi, {{ userName }}</span>
+      <button
+        pButton
+        type="button"
+        label="Logout"
+        icon="pi pi-sign-out"
+        class="p-button-text logout-btn"
+        (click)="logout()"
+      ></button>
+    </div>
+  </ng-template>
+</p-toolbar>

@@ -1,0 +1,50 @@
+:host ::ng-deep .app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 0;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  color: #fff;
+}
+
+.brand {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.brand .emoji {
+  margin-left: 0.25rem;
+}
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hi-user {
+  color: #fff;
+  font-weight: 500;
+}
+
+:host ::ng-deep .logout-btn.p-button.p-button-text {
+  color: #fff;
+}
+
+:host ::ng-deep .logout-btn.p-button.p-button-text:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .hi-user {
+    display: none;
+  }
+}

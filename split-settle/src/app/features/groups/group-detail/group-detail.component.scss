@@ -1,0 +1,181 @@
+.section-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-row .section-heading {
+  margin: 0;
+}
+
+.members-section {
+  margin-bottom: 2rem;
+}
+
+.members-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.member-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  padding: 0.4rem 0.85rem 0.4rem 0.4rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 0.875rem;
+}
+
+.member-name {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.tab-header-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.expense-list,
+.settlement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.expense-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.expense-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.expense-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.expense-desc {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.expense-meta {
+  font-size: 0.85rem;
+}
+
+.expense-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expense-amount {
+  font-weight: 700;
+  color: #2d3748;
+  font-size: 1.05rem;
+}
+
+.settlement-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #cbd5e0;
+}
+
+.settlement-card.owe {
+  border-left-color: #f56565;
+  background: #fff5f5;
+}
+
+.settlement-card.owed {
+  border-left-color: #48bb78;
+  background: #f0fff4;
+}
+
+.settlement-text {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dialog-form label {
+  font-weight: 600;
+  color: #444;
+  margin-top: 0.5rem;
+}
+
+.dialog-form input[type="text"],
+.dialog-form input[type="email"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+:host ::ng-deep .dialog-form p-inputnumber,
+:host ::ng-deep .dialog-form p-dropdown {
+  width: 100%;
+}
+
+:host ::ng-deep .dialog-form p-inputnumber .p-inputnumber,
+:host ::ng-deep .dialog-form p-dropdown {
+  display: block;
+  width: 100%;
+}
+
+:host ::ng-deep .dialog-form .p-inputnumber-input {
+  width: 100%;
+}
+
+.error-text {
+  color: #c53030;
+  font-size: 0.85rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 600px) {
+  .expense-card,
+  .settlement-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
