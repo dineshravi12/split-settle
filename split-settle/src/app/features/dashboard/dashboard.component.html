@@ -1,33 +1,51 @@
-<app-header></app-header>
+<div class="page-container dashboard">
+  <span class="blob blob-1" aria-hidden="true"></span>
+  <span class="blob blob-2" aria-hidden="true"></span>
 
-<div class="page-container">
-  <h1 class="page-heading">Dashboard</h1>
+  <header class="page-header">
+    <div>
+      <p class="greeting muted">{{ greeting }}<span *ngIf="userName">, {{ userName }}</span></p>
+      <h1 class="page-heading">Dashboard</h1>
+    </div>
+    <button
+      *ngIf="!loading && totalGroups > 0"
+      type="button"
+      class="btn btn-ghost desktop-only"
+      (click)="goToGroups()"
+    >
+      <i class="pi pi-external-link"></i> View all groups
+    </button>
+  </header>
 
-  <div *ngIf="loading" class="loading-wrap">
-    <p-progressSpinner strokeWidth="3"></p-progressSpinner>
-  </div>
+  <ng-container *ngIf="loading; else loaded">
+    <app-skeleton-loader type="stat" [rows]="3"></app-skeleton-loader>
+    <div class="skeleton-gap"></div>
+    <app-skeleton-loader type="card" [rows]="3"></app-skeleton-loader>
+  </ng-container>
 
-  <ng-container *ngIf="!loading">
+  <ng-template #loaded>
     <div class="stats-grid">
-      <div class="stat-card stat-total">
-        <span class="stat-icon"><i class="pi pi-users"></i></span>
-        <div>
-          <div class="stat-label">Total Groups</div>
-          <div class="stat-value">{{ totalGroups }}</div>
-        </div>
-      </div>
-      <div class="stat-card stat-owe">
-        <span class="stat-icon"><i class="pi pi-arrow-up-right"></i></span>
-        <div>
+      <div class="stat-card glass-card owe-tint">
+        <span class="stat-icon icon-danger"><i class="pi pi-arrow-up-right"></i></span>
+        <div class="stat-body">
           <div class="stat-label">You Owe</div>
-          <div class="stat-value">₹{{ totalYouOwe | number: "1.2-2" }}</div>
+          <div class="stat-value">₹{{ displayYouOwe | number: "1.2-2" }}</div>
         </div>
       </div>
-      <div class="stat-card stat-owed">
-        <span class="stat-icon"><i class="pi pi-arrow-down-left"></i></span>
-        <div>
+
+      <div class="stat-card glass-card owed-tint">
+        <span class="stat-icon icon-success"><i class="pi pi-arrow-down-left"></i></span>
+        <div class="stat-body">
           <div class="stat-label">Owed to You</div>
-          <div class="stat-value">₹{{ totalOwedToYou | number: "1.2-2" }}</div>
+          <div class="stat-value">₹{{ displayOwedToYou | number: "1.2-2" }}</div>
+        </div>
+      </div>
+
+      <div class="stat-card glass-card total-tint">
+        <span class="stat-icon icon-primary"><i class="pi pi-users"></i></span>
+        <div class="stat-body">
+          <div class="stat-label">Total Groups</div>
+          <div class="stat-value">{{ displayGroups }}</div>
         </div>
       </div>
     </div>
@@ -35,31 +53,41 @@
     <div class="section-row">
       <h2 class="section-heading">Recent Groups</h2>
       <button
-        *ngIf="totalGroups > 0"
-        pButton
+        *ngIf="totalGroups > 3"
         type="button"
-        label="View All"
-        class="p-button-text"
+        class="btn btn-ghost mobile-only"
         (click)="goToGroups()"
-      ></button>
+      >
+        <i class="pi pi-arrow-right"></i>
+      </button>
     </div>
 
-    <div *ngIf="recentGroups.length === 0" class="empty-state">
-      <div class="icon"><i class="pi pi-folder-open"></i></div>
-      <p>No groups yet</p>
-      <button
-        pButton
-        type="button"
-        label="Create Your First Group"
-        icon="pi pi-plus"
-        (click)="goToGroups()"
-      ></button>
+    <div *ngIf="recentGroups.length === 0" class="empty-state glass-panel">
+      <svg class="empty-illustration" viewBox="0 0 220 160" aria-hidden="true">
+        <defs>
+          <linearGradient id="dashG" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#7c3aed"/>
+            <stop offset="1" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="110" cy="140" rx="80" ry="8" fill="url(#dashG)" opacity=".15"/>
+        <circle cx="72" cy="72" r="28" fill="url(#dashG)" opacity=".85"/>
+        <circle cx="148" cy="82" r="34" fill="url(#dashG)" opacity=".6"/>
+        <circle cx="110" cy="60" r="20" fill="#fff" opacity=".9"/>
+        <text x="110" y="66" text-anchor="middle" font-size="22" font-family="Inter" font-weight="700" fill="#7c3aed">₹</text>
+      </svg>
+      <h3>No groups yet</h3>
+      <p>Create your first group to start tracking shared expenses.</p>
+      <button type="button" class="btn btn-primary" (click)="goToGroups()">
+        <i class="pi pi-plus"></i> Create your first group
+      </button>
     </div>
 
     <div *ngIf="recentGroups.length > 0" class="group-grid">
       <div
-        *ngFor="let g of recentGroups"
-        class="group-card"
+        *ngFor="let g of recentGroups; let i = index"
+        class="glass-card glass-card--interactive group-card"
+        [style.animationDelay.ms]="i * 80"
         (click)="openGroup(g.id)"
       >
         <div class="group-avatar gradient-avatar">
@@ -68,10 +96,18 @@
         <div class="group-info">
           <div class="group-name">{{ g.name }}</div>
           <div class="group-members muted">
-            {{ g.members.length || 0 }} members
+            <i class="pi pi-users"></i> {{ g.members.length || 0 }} members
           </div>
         </div>
+        <i class="pi pi-chevron-right group-arrow"></i>
       </div>
     </div>
-  </ng-container>
+  </ng-template>
 </div>
+
+<app-fab
+  *ngIf="!loading"
+  icon="pi-plus"
+  ariaLabel="Create a new group"
+  (fabClick)="goToGroups()"
+></app-fab>

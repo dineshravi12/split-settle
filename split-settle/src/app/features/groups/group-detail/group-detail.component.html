@@ -1,230 +1,394 @@
-<app-header></app-header>
-<p-toast></p-toast>
-<p-confirmDialog></p-confirmDialog>
+<div class="page-container group-detail">
+  <ng-container *ngIf="loading; else loaded">
+    <div class="skeleton-header">
+      <div class="shimmer line line-lg"></div>
+      <div class="shimmer line line-sm"></div>
+    </div>
+    <app-skeleton-loader type="list" [rows]="4"></app-skeleton-loader>
+  </ng-container>
 
-<div class="page-container">
-  <div *ngIf="loading" class="loading-wrap">
-    <p-progressSpinner strokeWidth="3"></p-progressSpinner>
-  </div>
+  <ng-template #loaded>
+    <ng-container *ngIf="group">
+      <button type="button" class="back-btn" (click)="goBack()">
+        <i class="pi pi-arrow-left"></i>
+        <span>All groups</span>
+      </button>
 
-  <ng-container *ngIf="!loading && group">
-    <h1 class="page-heading">{{ group.name }}</h1>
-
-    <section class="members-section">
-      <div class="section-row">
-        <h2 class="section-heading">Members</h2>
-        <button
-          pButton
-          type="button"
-          label="Add Member"
-          icon="pi pi-user-plus"
-          class="p-button-text"
-          (click)="openMemberDialog()"
-        ></button>
-      </div>
-      <div class="members-list">
-        <div *ngFor="let m of group.members" class="member-chip">
-          <div class="member-avatar gradient-avatar">
-            {{ m.name.charAt(0).toUpperCase() }}
-          </div>
-          <span class="member-name">{{ m.name }}</span>
+      <header class="group-header">
+        <div class="group-crest gradient-avatar">
+          {{ group.name.charAt(0).toUpperCase() }}
         </div>
-      </div>
-    </section>
+        <div class="group-heading">
+          <h1 class="page-heading">{{ group.name }}</h1>
+          <p class="muted">{{ group.members.length }} members</p>
+        </div>
+      </header>
 
-    <p-tabView>
-      <p-tabPanel header="Expenses">
+      <section class="members-section">
+        <div class="section-row">
+          <h2 class="section-heading">Members</h2>
+          <button
+            type="button"
+            class="btn btn-ghost small-btn"
+            (click)="openMemberDialog()"
+          >
+            <i class="pi pi-user-plus"></i>
+            <span class="desktop-only">Add member</span>
+          </button>
+        </div>
+        <div class="members-list">
+          <div *ngFor="let m of group.members" class="member-chip glass-card">
+            <div class="member-avatar gradient-avatar">
+              {{ m.name.charAt(0).toUpperCase() }}
+            </div>
+            <span class="member-name">{{ m.name }}</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="tabs glass-card" #tabs>
+        <button
+          type="button"
+          class="tab"
+          [class.active]="activeTab() === 'expenses'"
+          (click)="setTab('expenses')"
+        >
+          <i class="pi pi-wallet"></i>
+          <span>Expenses</span>
+          <span class="tab-count" *ngIf="expenses.length">{{ expenses.length }}</span>
+        </button>
+        <button
+          type="button"
+          class="tab"
+          [class.active]="activeTab() === 'settlements'"
+          (click)="setTab('settlements')"
+        >
+          <i class="pi pi-arrow-right-arrow-left"></i>
+          <span>Settlements</span>
+          <span class="tab-count" *ngIf="settlements.length">{{ settlements.length }}</span>
+        </button>
+        <span
+          class="tab-indicator"
+          [class.right]="activeTab() === 'settlements'"
+        ></span>
+      </div>
+
+      <!-- Expenses tab -->
+      <section *ngIf="activeTab() === 'expenses'" class="tab-panel">
         <div class="tab-header-row">
           <button
-            pButton
             type="button"
-            label="Add Expense"
-            icon="pi pi-plus"
+            class="btn btn-primary desktop-only"
             (click)="openExpenseDialog()"
-          ></button>
+          >
+            <i class="pi pi-plus"></i> Add expense
+          </button>
         </div>
 
-        <div *ngIf="loadingExpenses" class="loading-wrap">
-          <p-progressSpinner strokeWidth="3"></p-progressSpinner>
-        </div>
+        <app-skeleton-loader
+          *ngIf="loadingExpenses"
+          type="list"
+          [rows]="3"
+        ></app-skeleton-loader>
 
         <ng-container *ngIf="!loadingExpenses">
-          <div *ngIf="expenses.length === 0" class="empty-state">
-            <div class="icon"><i class="pi pi-wallet"></i></div>
-            <p>No expenses yet, add the first one</p>
+          <div *ngIf="expenses.length === 0" class="empty-state glass-panel">
+            <svg class="empty-illustration" viewBox="0 0 200 140" aria-hidden="true">
+              <defs>
+                <linearGradient id="expG" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#7c3aed"/>
+                  <stop offset="1" stop-color="#06b6d4"/>
+                </linearGradient>
+              </defs>
+              <rect x="40" y="30" width="120" height="80" rx="12" fill="url(#expG)" opacity=".2"/>
+              <rect x="55" y="48" width="90" height="6" rx="3" fill="#7c3aed" opacity=".6"/>
+              <rect x="55" y="62" width="70" height="6" rx="3" fill="#7c3aed" opacity=".35"/>
+              <rect x="55" y="76" width="80" height="6" rx="3" fill="#7c3aed" opacity=".35"/>
+              <rect x="55" y="90" width="55" height="6" rx="3" fill="#7c3aed" opacity=".35"/>
+            </svg>
+            <h3>No expenses yet</h3>
+            <p>Add the first expense to start splitting.</p>
           </div>
 
-          <div *ngIf="expenses.length > 0" class="expense-list">
-            <div *ngFor="let e of expenses" class="expense-card">
-              <div class="expense-main">
-                <div class="expense-top">
-                  <span class="expense-desc">{{ e.description }}</span>
-                  <p-tag
-                    [value]="e.category"
-                    [severity]="categorySeverity(e.category)"
-                  ></p-tag>
-                </div>
-                <div class="expense-meta muted">
-                  Paid by {{ e.paidByName }} ·
-                  {{ e.createdAt | date: "MMM d, y" }}
-                </div>
-              </div>
-              <div class="expense-right">
-                <span class="expense-amount"
-                  >₹{{ e.amount | number: "1.2-2" }}</span
-                >
+          <div
+            *ngIf="expenses.length > 0"
+            class="expense-list"
+            [@listStagger]="expenses.length"
+          >
+            <div
+              *ngFor="let e of expenses; trackBy: trackExpense"
+              class="expense-row"
+            >
+              <div class="delete-slot">
                 <button
-                  pButton
                   type="button"
-                  icon="pi pi-trash"
-                  class="p-button-text p-button-danger"
+                  class="delete-btn"
                   (click)="confirmDeleteExpense(e)"
-                ></button>
+                  aria-label="Delete expense"
+                >
+                  <i class="pi pi-trash"></i>
+                </button>
+              </div>
+              <div
+                class="expense-card glass-card"
+                [style.transform]="swipeTransform(e.id)"
+                (touchstart)="onSwipeStart($event, e.id)"
+                (touchmove)="onSwipeMove($event, e.id)"
+                (touchend)="onSwipeEnd(e)"
+                (touchcancel)="resetSwipe(e.id)"
+              >
+                <div class="expense-icon" [class]="categoryClass(e.category)">
+                  <i class="pi" [class]="categoryIcon(e.category)"></i>
+                </div>
+                <div class="expense-main">
+                  <div class="expense-top">
+                    <span class="expense-desc">{{ e.description }}</span>
+                  </div>
+                  <div class="expense-meta muted">
+                    Paid by {{ e.paidByName }} · {{ e.createdAt | date: "MMM d" }}
+                  </div>
+                </div>
+                <div class="expense-right">
+                  <span class="expense-amount">₹{{ e.amount | number: "1.2-2" }}</span>
+                  <button
+                    type="button"
+                    class="icon-inline desktop-only"
+                    (click)="confirmDeleteExpense(e)"
+                    aria-label="Delete expense"
+                  >
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </ng-container>
-      </p-tabPanel>
+      </section>
 
-      <p-tabPanel header="Settlements">
-        <div *ngIf="loadingSettlements" class="loading-wrap">
-          <p-progressSpinner strokeWidth="3"></p-progressSpinner>
-        </div>
+      <!-- Settlements tab -->
+      <section *ngIf="activeTab() === 'settlements'" class="tab-panel">
+        <app-skeleton-loader
+          *ngIf="loadingSettlements"
+          type="list"
+          [rows]="3"
+        ></app-skeleton-loader>
 
         <ng-container *ngIf="!loadingSettlements">
-          <div *ngIf="settlements.length === 0" class="empty-state">
-            <div class="icon"><i class="pi pi-check-circle"></i></div>
-            <p>All settled up! 🎉</p>
+          <div *ngIf="settlements.length === 0" class="empty-state glass-panel">
+            <svg class="empty-illustration" viewBox="0 0 200 140" aria-hidden="true">
+              <defs>
+                <linearGradient id="settG" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#22c55e"/>
+                  <stop offset="1" stop-color="#06b6d4"/>
+                </linearGradient>
+              </defs>
+              <circle cx="100" cy="70" r="42" fill="url(#settG)" opacity=".25"/>
+              <path d="M78 72 l14 14 l30 -32" stroke="#22c55e" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>All settled up!</h3>
+            <p>No outstanding balances — nice work.</p>
           </div>
 
-          <div *ngIf="settlements.length > 0" class="settlement-list">
-            <div *ngFor="let s of settlements" [class]="settlementClass(s)">
+          <div
+            *ngIf="settlements.length > 0"
+            class="settlement-list"
+            [@listStagger]="settlements.length"
+          >
+            <div
+              *ngFor="let s of settlements; trackBy: trackSettlement"
+              [class]="settlementClass(s) + ' glass-card'"
+              [class.settled]="isSettled(s)"
+            >
+              <div class="settlement-icon" *ngIf="!isSettled(s)">
+                <i class="pi pi-arrow-right-arrow-left"></i>
+              </div>
+              <div class="settlement-icon done" *ngIf="isSettled(s)">
+                <i class="pi pi-check"></i>
+              </div>
               <div class="settlement-text">{{ settlementText(s) }}</div>
               <button
-                *ngIf="canSettle(s)"
-                pButton
+                *ngIf="canSettle(s) && !isSettled(s)"
                 type="button"
-                label="Settle Up"
-                icon="pi pi-check"
-                [loading]="isSettling(s)"
+                class="btn btn-primary small-btn settle-btn"
+                [class.loading]="isSettling(s)"
+                [disabled]="isSettling(s)"
                 (click)="confirmSettle(s)"
-              ></button>
+              >
+                <span class="label"><i class="pi pi-check"></i> Settle</span>
+              </button>
             </div>
           </div>
         </ng-container>
-      </p-tabPanel>
-    </p-tabView>
-  </ng-container>
+      </section>
+    </ng-container>
+  </ng-template>
 </div>
 
-<p-dialog
-  header="Add Member"
-  [modal]="true"
-  [(visible)]="showMemberDialog"
-  [style]="{ width: '420px' }"
-  [draggable]="false"
-  [resizable]="false"
->
-  <form [formGroup]="memberForm" (ngSubmit)="addMember()" class="dialog-form">
-    <label for="memberEmail">Email</label>
-    <input
-      id="memberEmail"
-      type="email"
-      pInputText
-      formControlName="email"
-      placeholder="user@example.com"
-    />
-    <small
-      *ngIf="
-        memberForm.get('email')?.touched && memberForm.get('email')?.invalid
-      "
-      class="error-text"
-    >
-      Please enter a valid email
-    </small>
+<app-fab
+  *ngIf="!loading && group"
+  [icon]="activeTab() === 'expenses' ? 'pi-plus' : 'pi-user-plus'"
+  [ariaLabel]="activeTab() === 'expenses' ? 'Add an expense' : 'Add a member'"
+  (fabClick)="activeTab() === 'expenses' ? openExpenseDialog() : openMemberDialog()"
+></app-fab>
 
-    <div class="dialog-actions">
+<!-- Member sheet -->
+<ng-container *ngIf="showMemberDialog">
+  <div class="sheet-backdrop" (click)="closeMemberDialog()"></div>
+  <div class="bottom-sheet" role="dialog" aria-labelledby="memberTitle">
+    <div class="sheet-header">
+      <h2 id="memberTitle">Add a member</h2>
       <button
-        pButton
         type="button"
-        label="Cancel"
-        class="p-button-text"
+        class="icon-close"
+        aria-label="Close"
         (click)="closeMemberDialog()"
-      ></button>
-      <button
-        pButton
-        type="submit"
-        label="Add"
-        [loading]="addingMember"
-        [disabled]="memberForm.invalid"
-      ></button>
+      >
+        <i class="pi pi-times"></i>
+      </button>
     </div>
-  </form>
-</p-dialog>
+    <p class="sheet-tag muted">Enter the email of the person you'd like to add.</p>
 
-<p-dialog
-  header="Add Expense"
-  [modal]="true"
-  [(visible)]="showExpenseDialog"
-  [style]="{ width: '480px' }"
-  [draggable]="false"
-  [resizable]="false"
->
-  <form [formGroup]="expenseForm" (ngSubmit)="addExpense()" class="dialog-form">
-    <label for="expenseDesc">Description</label>
-    <input
-      id="expenseDesc"
-      type="text"
-      pInputText
-      formControlName="description"
-      placeholder="e.g. Dinner"
-    />
+    <form [formGroup]="memberForm" (ngSubmit)="addMember()" novalidate>
+      <div class="field" [class.filled]="!!memberForm.get('email')?.value">
+        <input
+          id="memberEmail"
+          type="email"
+          formControlName="email"
+          placeholder=" "
+          autocomplete="email"
+        />
+        <label for="memberEmail">Email address</label>
+        <small
+          class="field-error"
+          *ngIf="memberForm.get('email')?.touched && memberForm.get('email')?.invalid"
+        >
+          Please enter a valid email
+        </small>
+      </div>
 
-    <label for="expenseAmount">Amount (₹)</label>
-    <p-inputNumber
-      id="expenseAmount"
-      formControlName="amount"
-      [min]="1"
-      mode="decimal"
-      [minFractionDigits]="0"
-      [maxFractionDigits]="2"
-    ></p-inputNumber>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" (click)="closeMemberDialog()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [class.loading]="addingMember"
+          [disabled]="addingMember"
+        >
+          <span class="label">Add member</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</ng-container>
 
-    <label for="expenseCategory">Category</label>
-    <p-dropdown
-      id="expenseCategory"
-      [options]="categoryOptions"
-      formControlName="category"
-      optionLabel="label"
-      optionValue="value"
-      placeholder="Select category"
-    ></p-dropdown>
-
-    <label for="expensePaidBy">Paid By</label>
-    <p-dropdown
-      id="expensePaidBy"
-      [options]="memberOptions"
-      formControlName="paidBy"
-      optionLabel="label"
-      optionValue="value"
-      placeholder="Select member"
-    ></p-dropdown>
-
-    <div class="dialog-actions">
+<!-- Expense sheet -->
+<ng-container *ngIf="showExpenseDialog">
+  <div class="sheet-backdrop" (click)="closeExpenseDialog()"></div>
+  <div class="bottom-sheet" role="dialog" aria-labelledby="expenseTitle">
+    <div class="sheet-header">
+      <h2 id="expenseTitle">Add an expense</h2>
       <button
-        pButton
         type="button"
-        label="Cancel"
-        class="p-button-text"
+        class="icon-close"
+        aria-label="Close"
         (click)="closeExpenseDialog()"
-      ></button>
-      <button
-        pButton
-        type="submit"
-        label="Add Expense"
-        [loading]="addingExpense"
-        [disabled]="expenseForm.invalid"
-      ></button>
+      >
+        <i class="pi pi-times"></i>
+      </button>
     </div>
-  </form>
-</p-dialog>
+
+    <form [formGroup]="expenseForm" (ngSubmit)="addExpense()" novalidate>
+      <div class="field" [class.filled]="!!expenseForm.get('description')?.value">
+        <input
+          id="expenseDesc"
+          type="text"
+          formControlName="description"
+          placeholder=" "
+        />
+        <label for="expenseDesc">Description</label>
+      </div>
+
+      <div class="field" [class.filled]="expenseForm.get('amount')?.value != null && expenseForm.get('amount')?.value !== ''">
+        <input
+          id="expenseAmount"
+          type="number"
+          formControlName="amount"
+          placeholder=" "
+          min="1"
+          step="0.01"
+          inputmode="decimal"
+        />
+        <label for="expenseAmount">Amount (₹)</label>
+        <small
+          class="field-error"
+          *ngIf="expenseForm.get('amount')?.touched && expenseForm.get('amount')?.invalid"
+        >
+          Enter an amount above ₹1
+        </small>
+      </div>
+
+      <label class="stack-label">Category</label>
+      <div class="chip-row">
+        <button
+          type="button"
+          *ngFor="let c of categoryOptions"
+          class="chip-btn"
+          [class.selected]="expenseForm.get('category')?.value === c.value"
+          (click)="expenseForm.get('category')?.setValue(c.value)"
+        >
+          <i class="pi" [class]="c.icon"></i>
+          {{ c.label }}
+        </button>
+      </div>
+
+      <label for="expensePaidBy" class="stack-label">Paid by</label>
+      <select
+        id="expensePaidBy"
+        formControlName="paidBy"
+        class="field-select"
+      >
+        <option [ngValue]="null" disabled>Select member</option>
+        <option *ngFor="let m of memberOptions" [ngValue]="m.value">
+          {{ m.label }}
+        </option>
+      </select>
+      <small
+        class="field-error"
+        *ngIf="expenseForm.get('paidBy')?.touched && expenseForm.get('paidBy')?.invalid"
+      >
+        Select who paid
+      </small>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" (click)="closeExpenseDialog()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [class.loading]="addingExpense"
+          [disabled]="addingExpense"
+        >
+          <span class="label">Add expense</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</ng-container>
+
+<!-- Confetti overlay -->
+<div class="confetti-wrap" *ngIf="confetti() as pieces" aria-hidden="true">
+  <span
+    *ngFor="let p of pieces"
+    class="confetti-piece"
+    [style.left.%]="p.left"
+    [style.background]="p.color"
+    [style.animation-delay.ms]="p.delay"
+    [style.animation-duration.ms]="p.duration"
+  ></span>
+</div>
+
+<p-toast position="top-right"></p-toast>
+<p-confirmDialog></p-confirmDialog>

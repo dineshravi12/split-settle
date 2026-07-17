@@ -1,0 +1,36 @@
+<ng-container [ngSwitch]="type">
+  <div *ngSwitchCase="'stat'" class="stat-grid">
+    <div *ngFor="let i of rowList" class="stat-skel glass-card">
+      <div class="shimmer circle"></div>
+      <div class="lines">
+        <div class="shimmer line line-sm"></div>
+        <div class="shimmer line line-lg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngSwitchCase="'card'" class="card-grid">
+    <div *ngFor="let i of rowList" class="card-skel glass-card">
+      <div class="shimmer circle"></div>
+      <div class="lines">
+        <div class="shimmer line line-md"></div>
+        <div class="shimmer line line-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngSwitchCase="'list'" class="list-skel">
+    <div *ngFor="let i of rowList" class="list-row glass-card">
+      <div class="shimmer line line-md"></div>
+      <div class="shimmer line line-sm"></div>
+    </div>
+  </div>
+
+  <div *ngSwitchCase="'avatar'" class="avatar-row">
+    <div *ngFor="let i of rowList" class="shimmer circle sm"></div>
+  </div>
+
+  <div *ngSwitchDefault class="list-skel">
+    <div *ngFor="let i of rowList" class="shimmer line line-md"></div>
+  </div>
+</ng-container>

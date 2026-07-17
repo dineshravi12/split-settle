@@ -1,20 +1,49 @@
-<p-toolbar styleClass="app-toolbar">
-  <ng-template pTemplate="start">
+<header class="app-header">
+  <div class="header-inner">
     <button type="button" class="brand" (click)="goHome()">
-      Split &amp; Settle <span class="emoji">💸</span>
+      <span class="brand-mark">S</span>
+      <span class="brand-text">Split &amp; Settle</span>
     </button>
-  </ng-template>
-  <ng-template pTemplate="end">
+
+    <nav class="nav-links desktop-only" aria-label="Primary">
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/groups" routerLinkActive="active">Groups</a>
+    </nav>
+
     <div class="user-area">
-      <span class="hi-user" *ngIf="userName">Hi, {{ userName }}</span>
       <button
-        pButton
         type="button"
-        label="Logout"
-        icon="pi pi-sign-out"
-        class="p-button-text logout-btn"
-        (click)="logout()"
-      ></button>
+        class="icon-btn theme-toggle"
+        [attr.aria-label]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+        (click)="toggleTheme()"
+      >
+        <i class="pi" [class.pi-sun]="themeService.isDark()" [class.pi-moon]="!themeService.isDark()"></i>
+      </button>
+
+      <div class="avatar-wrap">
+        <button
+          type="button"
+          class="avatar gradient-avatar"
+          [attr.aria-label]="'Open user menu for ' + userName"
+          (click)="toggleMenu($event)"
+        >
+          {{ initial }}
+        </button>
+
+        <div class="avatar-menu glass-panel" *ngIf="menuOpen" (click)="$event.stopPropagation()">
+          <div class="menu-header">
+            <div class="menu-avatar gradient-avatar">{{ initial }}</div>
+            <div>
+              <div class="menu-name">{{ userName || 'Guest' }}</div>
+              <div class="menu-hint muted">Signed in</div>
+            </div>
+          </div>
+          <button type="button" class="menu-item" (click)="logout()">
+            <i class="pi pi-sign-out"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
     </div>
-  </ng-template>
-</p-toolbar>
+  </div>
+</header>

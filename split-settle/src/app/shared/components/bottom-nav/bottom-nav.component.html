@@ -1,0 +1,12 @@
+<nav class="bottom-nav mobile-only" aria-label="Primary">
+  <a
+    *ngFor="let item of items"
+    [routerLink]="item.path"
+    routerLinkActive="active"
+    class="nav-item"
+  >
+    <span class="nav-item__pill" aria-hidden="true"></span>
+    <i class="pi" [class]="item.icon"></i>
+    <span class="nav-item__label">{{ item.label }}</span>
+  </a>
+</nav>

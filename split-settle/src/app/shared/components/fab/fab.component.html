@@ -1,0 +1,10 @@
+<button
+  type="button"
+  class="fab mobile-only"
+  [class.pulsing]="pulse"
+  [attr.aria-label]="ariaLabel"
+  (click)="onClick()"
+>
+  <span class="fab__ring" aria-hidden="true"></span>
+  <i class="pi" [class]="icon"></i>
+</button>

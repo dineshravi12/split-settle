@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { Router } from "@angular/router";
 import {
@@ -7,15 +7,20 @@ import {
   Validators,
   ReactiveFormsModule,
 } from "@angular/forms";
-import { ButtonModule } from "primeng/button";
-import { DialogModule } from "primeng/dialog";
-import { InputTextModule } from "primeng/inputtext";
-import { ProgressSpinnerModule } from "primeng/progressspinner";
+import {
+  trigger,
+  transition,
+  query,
+  stagger,
+  animate,
+  style,
+} from "@angular/animations";
 import { ToastModule } from "primeng/toast";
 import { MessageService } from "primeng/api";
 import { GroupService } from "../../../core/services/group.service";
 import { Group } from "../../../core/models/group.model";
-import { HeaderComponent } from "../../../shared/components/header/header.component";
+import { SkeletonLoaderComponent } from "../../../shared/components/skeleton-loader/skeleton-loader.component";
+import { FabComponent } from "../../../shared/components/fab/fab.component";
 
 @Component({
   selector: "app-group-list",
@@ -23,34 +28,46 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    ButtonModule,
-    DialogModule,
-    InputTextModule,
-    ProgressSpinnerModule,
     ToastModule,
-    HeaderComponent,
+    SkeletonLoaderComponent,
+    FabComponent,
   ],
   providers: [MessageService],
   templateUrl: "./group-list.component.html",
   styleUrls: ["./group-list.component.scss"],
+  animations: [
+    trigger("listStagger", [
+      transition("* => *", [
+        query(
+          ":enter",
+          [
+            style({ opacity: 0, transform: "translateY(16px)" }),
+            stagger(60, [
+              animate(
+                "320ms cubic-bezier(0.16, 1, 0.3, 1)",
+                style({ opacity: 1, transform: "translateY(0)" }),
+              ),
+            ]),
+          ],
+          { optional: true },
+        ),
+      ]),
+    ]),
+  ],
 })
 export class GroupListComponent implements OnInit {
+  private groupService = inject(GroupService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private messageService = inject(MessageService);
+
   loading = true;
   groups: Group[] = [];
   showDialog = false;
   submitting = false;
-  groupForm: FormGroup;
-
-  constructor(
-    private groupService: GroupService,
-    private router: Router,
-    private fb: FormBuilder,
-    private messageService: MessageService,
-  ) {
-    this.groupForm = this.fb.group({
-      name: ["", [Validators.required, Validators.minLength(3)]],
-    });
-  }
+  groupForm: FormGroup = this.fb.group({
+    name: ["", [Validators.required, Validators.minLength(3)]],
+  });
 
   ngOnInit(): void {
     this.loadGroups();
@@ -80,6 +97,7 @@ export class GroupListComponent implements OnInit {
   }
 
   closeDialog(): void {
+    if (this.submitting) return;
     this.showDialog = false;
   }
 
@@ -97,8 +115,8 @@ export class GroupListComponent implements OnInit {
         this.showDialog = false;
         this.messageService.add({
           severity: "success",
-          summary: "Group Created",
-          detail: `"${group.name}" was created`,
+          summary: "Group created",
+          detail: `"${group.name}" is ready`,
         });
       },
       error: (error) => {
@@ -106,7 +124,7 @@ export class GroupListComponent implements OnInit {
         this.messageService.add({
           severity: "error",
           summary: "Error",
-          detail: error.error?.message || "Failed to create group",
+          detail: error?.error?.message || "Failed to create group",
         });
       },
     });
@@ -114,5 +132,9 @@ export class GroupListComponent implements OnInit {
 
   openGroup(id: number): void {
     this.router.navigate(["/groups", id]);
+  }
+
+  trackId(_: number, group: Group): number {
+    return group.id;
   }
 }

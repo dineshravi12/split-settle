@@ -1,39 +1,56 @@
-<app-header></app-header>
-<p-toast></p-toast>
+<div class="page-container groups-page">
+  <span class="blob blob-1" aria-hidden="true"></span>
 
-<div class="page-container">
-  <div class="page-header-row">
-    <h1 class="page-heading">My Groups</h1>
+  <header class="page-header">
+    <div>
+      <p class="subheading muted">All your shared expense circles</p>
+      <h1 class="page-heading">My Groups</h1>
+    </div>
     <button
-      pButton
       type="button"
-      label="New Group"
-      icon="pi pi-plus"
+      class="btn btn-primary desktop-only"
       (click)="openDialog()"
-    ></button>
-  </div>
+    >
+      <i class="pi pi-plus"></i> New group
+    </button>
+  </header>
 
-  <div *ngIf="loading" class="loading-wrap">
-    <p-progressSpinner strokeWidth="3"></p-progressSpinner>
-  </div>
+  <ng-container *ngIf="loading; else loaded">
+    <app-skeleton-loader type="card" [rows]="4"></app-skeleton-loader>
+  </ng-container>
 
-  <ng-container *ngIf="!loading">
-    <div *ngIf="groups.length === 0" class="empty-state">
-      <div class="icon"><i class="pi pi-folder-open"></i></div>
-      <p>You don't have any groups yet</p>
-      <button
-        pButton
-        type="button"
-        label="Create Your First Group"
-        icon="pi pi-plus"
-        (click)="openDialog()"
-      ></button>
+  <ng-template #loaded>
+    <div *ngIf="groups.length === 0" class="empty-state glass-panel">
+      <svg class="empty-illustration" viewBox="0 0 220 160" aria-hidden="true">
+        <defs>
+          <linearGradient id="listG" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#7c3aed"/>
+            <stop offset="1" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="110" cy="140" rx="80" ry="8" fill="url(#listG)" opacity=".15"/>
+        <rect x="55" y="52" width="110" height="72" rx="14" fill="url(#listG)" opacity=".2"/>
+        <rect x="65" y="62" width="90" height="8" rx="4" fill="#7c3aed" opacity=".6"/>
+        <rect x="65" y="78" width="60" height="6" rx="3" fill="#7c3aed" opacity=".3"/>
+        <rect x="65" y="92" width="70" height="6" rx="3" fill="#7c3aed" opacity=".3"/>
+        <circle cx="150" cy="46" r="14" fill="#06b6d4"/>
+        <text x="150" y="51" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">+</text>
+      </svg>
+      <h3>You don't have any groups yet</h3>
+      <p>Groups keep expenses organized between friends, roommates, or trips.</p>
+      <button type="button" class="btn btn-primary" (click)="openDialog()">
+        <i class="pi pi-plus"></i> Create your first group
+      </button>
     </div>
 
-    <div *ngIf="groups.length > 0" class="group-grid">
+    <div
+      *ngIf="groups.length > 0"
+      class="group-grid"
+      [@listStagger]="groups.length"
+    >
       <div
-        *ngFor="let g of groups"
-        class="group-card"
+        *ngFor="let g of groups; trackBy: trackId"
+        class="glass-card glass-card--interactive group-card"
         (click)="openGroup(g.id)"
       >
         <div class="group-avatar gradient-avatar">
@@ -41,54 +58,76 @@
         </div>
         <div class="group-info">
           <div class="group-name">{{ g.name }}</div>
-          <div class="group-members muted">
-            {{ g.members.length || 0 }} members
+          <div class="group-members">
+            <span class="chip"><i class="pi pi-users"></i> {{ g.members.length || 0 }} members</span>
           </div>
         </div>
+        <i class="pi pi-chevron-right group-arrow"></i>
       </div>
     </div>
-  </ng-container>
+  </ng-template>
 </div>
 
-<p-dialog
-  header="Create New Group"
-  [modal]="true"
-  [(visible)]="showDialog"
-  [style]="{ width: '420px' }"
-  [draggable]="false"
-  [resizable]="false"
->
-  <form [formGroup]="groupForm" (ngSubmit)="createGroup()" class="dialog-form">
-    <label for="groupName">Group Name</label>
-    <input
-      id="groupName"
-      type="text"
-      pInputText
-      formControlName="name"
-      placeholder="e.g. Goa Trip"
-    />
-    <small
-      *ngIf="groupForm.get('name')?.touched && groupForm.get('name')?.invalid"
-      class="error-text"
-    >
-      Name must be at least 3 characters
-    </small>
+<app-fab
+  *ngIf="!loading"
+  icon="pi-plus"
+  ariaLabel="Create a new group"
+  (fabClick)="openDialog()"
+></app-fab>
 
-    <div class="dialog-actions">
+<ng-container *ngIf="showDialog">
+  <div class="sheet-backdrop" (click)="closeDialog()"></div>
+  <div class="bottom-sheet" role="dialog" aria-labelledby="createGroupTitle">
+    <div class="sheet-header">
+      <h2 id="createGroupTitle">Create a new group</h2>
       <button
-        pButton
         type="button"
-        label="Cancel"
-        class="p-button-text"
+        class="icon-close"
+        aria-label="Close"
         (click)="closeDialog()"
-      ></button>
-      <button
-        pButton
-        type="submit"
-        label="Create"
-        [loading]="submitting"
-        [disabled]="groupForm.invalid"
-      ></button>
+      >
+        <i class="pi pi-times"></i>
+      </button>
     </div>
-  </form>
-</p-dialog>
+    <p class="sheet-tag muted">Give it a name — you can add members after.</p>
+
+    <form [formGroup]="groupForm" (ngSubmit)="createGroup()" novalidate>
+      <div class="field" [class.filled]="!!groupForm.get('name')?.value">
+        <input
+          id="groupName"
+          type="text"
+          formControlName="name"
+          placeholder=" "
+          autocomplete="off"
+        />
+        <label for="groupName">Group name</label>
+        <small
+          class="field-error"
+          *ngIf="groupForm.get('name')?.touched && groupForm.get('name')?.invalid"
+        >
+          Name must be at least 3 characters
+        </small>
+      </div>
+
+      <div class="sheet-actions">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          (click)="closeDialog()"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [class.loading]="submitting"
+          [disabled]="submitting"
+        >
+          <span class="label">Create group</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</ng-container>
+
+<p-toast position="top-right"></p-toast>

@@ -1,0 +1,105 @@
+<div class="onboarding">
+  <span class="orb orb-1" aria-hidden="true"></span>
+  <span class="orb orb-2" aria-hidden="true"></span>
+  <span class="orb orb-3" aria-hidden="true"></span>
+
+  <button type="button" class="skip-btn" (click)="skip()">Skip</button>
+
+  <div class="stage">
+    <div class="illustration-wrap" [@stepIn]="index()">
+      <ng-container [ngSwitch]="step.illustration">
+        <svg *ngSwitchCase="'groups'" viewBox="0 0 300 220" class="illustration" aria-hidden="true">
+          <defs>
+            <linearGradient id="obG1" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#7c3aed"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="150" cy="200" rx="120" ry="10" fill="url(#obG1)" opacity=".15"/>
+          <rect x="70" y="60" width="160" height="120" rx="20" fill="url(#obG1)" opacity=".2"/>
+          <rect x="88" y="80" width="124" height="14" rx="7" fill="#7c3aed" opacity=".7"/>
+          <rect x="88" y="104" width="80" height="10" rx="5" fill="#7c3aed" opacity=".4"/>
+          <rect x="88" y="124" width="100" height="10" rx="5" fill="#7c3aed" opacity=".4"/>
+          <rect x="88" y="144" width="60" height="10" rx="5" fill="#7c3aed" opacity=".4"/>
+          <circle cx="220" cy="55" r="22" fill="#06b6d4"/>
+          <text x="220" y="63" text-anchor="middle" font-size="24" font-weight="700" fill="#fff">+</text>
+        </svg>
+
+        <svg *ngSwitchCase="'friends'" viewBox="0 0 300 220" class="illustration" aria-hidden="true">
+          <defs>
+            <linearGradient id="obG2" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#7c3aed"/>
+              <stop offset="1" stop-color="#a855f7"/>
+            </linearGradient>
+            <linearGradient id="obG2b" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#06b6d4"/>
+              <stop offset="1" stop-color="#3b82f6"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="150" cy="200" rx="120" ry="10" fill="#7c3aed" opacity=".15"/>
+          <circle cx="90" cy="100" r="36" fill="url(#obG2)"/>
+          <text x="90" y="108" text-anchor="middle" font-size="28" font-weight="700" fill="#fff">A</text>
+          <circle cx="150" cy="80" r="42" fill="url(#obG2b)"/>
+          <text x="150" y="90" text-anchor="middle" font-size="32" font-weight="700" fill="#fff">B</text>
+          <circle cx="210" cy="100" r="36" fill="url(#obG2)"/>
+          <text x="210" y="108" text-anchor="middle" font-size="28" font-weight="700" fill="#fff">C</text>
+          <circle cx="150" cy="160" r="20" fill="#22c55e"/>
+          <text x="150" y="167" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">+</text>
+        </svg>
+
+        <svg *ngSwitchCase="'expenses'" viewBox="0 0 300 220" class="illustration" aria-hidden="true">
+          <defs>
+            <linearGradient id="obG3" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#22c55e"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="150" cy="200" rx="120" ry="10" fill="#22c55e" opacity=".15"/>
+          <rect x="60" y="50" width="180" height="130" rx="16" fill="url(#obG3)" opacity=".2"/>
+          <circle cx="90" cy="90" r="16" fill="#7c3aed"/>
+          <text x="90" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">₹</text>
+          <rect x="115" y="82" width="80" height="8" rx="4" fill="#7c3aed" opacity=".7"/>
+          <rect x="115" y="96" width="55" height="6" rx="3" fill="#7c3aed" opacity=".35"/>
+          <circle cx="90" cy="140" r="16" fill="#06b6d4"/>
+          <text x="90" y="146" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">₹</text>
+          <rect x="115" y="132" width="70" height="8" rx="4" fill="#06b6d4" opacity=".7"/>
+          <rect x="115" y="146" width="90" height="6" rx="3" fill="#06b6d4" opacity=".35"/>
+          <circle cx="220" cy="115" r="26" fill="#22c55e"/>
+          <path d="M210 116 l8 8 l14 -16" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </ng-container>
+    </div>
+
+    <div class="copy-wrap" [@stepIn]="index()">
+      <h1 class="step-title">{{ step.title }}</h1>
+      <p class="step-body">{{ step.body }}</p>
+    </div>
+
+    <div class="dots">
+      <button
+        type="button"
+        *ngFor="let s of steps; let i = index"
+        class="dot"
+        [class.active]="i === index()"
+        [attr.aria-label]="'Go to step ' + (i + 1)"
+        (click)="goTo(i)"
+      ></button>
+    </div>
+
+    <div class="actions">
+      <button
+        type="button"
+        class="btn btn-ghost prev-btn"
+        [disabled]="index() === 0"
+        (click)="prev()"
+      >
+        <i class="pi pi-arrow-left"></i>
+        <span>Back</span>
+      </button>
+      <button type="button" class="btn btn-primary next-btn" (click)="next()">
+        <span>{{ isLast() ? "Let's go" : "Next" }}</span>
+        <i class="pi" [class.pi-arrow-right]="!isLast()" [class.pi-check]="isLast()"></i>
+      </button>
+    </div>
+  </div>
+</div>

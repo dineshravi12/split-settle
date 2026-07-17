@@ -1,0 +1,92 @@
+<div class="page-container profile-page">
+  <span class="blob blob-1" aria-hidden="true"></span>
+
+  <header class="profile-hero glass-panel">
+    <div class="profile-avatar gradient-avatar">{{ initial }}</div>
+    <div class="profile-heading">
+      <h1>{{ userName || 'Guest' }}</h1>
+      <p class="muted">Member since {{ memberSince }}</p>
+    </div>
+  </header>
+
+  <section class="section">
+    <h2 class="section-heading">Your balance</h2>
+
+    <ng-container *ngIf="loading; else stats">
+      <app-skeleton-loader type="stat" [rows]="3"></app-skeleton-loader>
+    </ng-container>
+
+    <ng-template #stats>
+      <div class="balance-grid">
+        <div class="balance-card glass-card net-tint" [class.negative]="netBalance < 0" [class.positive]="netBalance > 0">
+          <span class="balance-label">Net balance</span>
+          <span class="balance-value">
+            <span *ngIf="netBalance >= 0">+</span><span *ngIf="netBalance < 0">-</span>₹{{ (netBalance < 0 ? -netBalance : netBalance) | number: "1.2-2" }}
+          </span>
+          <span class="balance-hint muted">
+            {{ netBalance > 0 ? "You're owed more than you owe" : netBalance < 0 ? "You owe more than you're owed" : "You're all square" }}
+          </span>
+        </div>
+
+        <div class="mini-grid">
+          <div class="mini-card glass-card owe-tint">
+            <span class="mini-icon icon-danger"><i class="pi pi-arrow-up-right"></i></span>
+            <div>
+              <div class="mini-label">You owe</div>
+              <div class="mini-value">₹{{ totalYouOwe | number: "1.2-2" }}</div>
+            </div>
+          </div>
+          <div class="mini-card glass-card owed-tint">
+            <span class="mini-icon icon-success"><i class="pi pi-arrow-down-left"></i></span>
+            <div>
+              <div class="mini-label">Owed to you</div>
+              <div class="mini-value">₹{{ totalOwedToYou | number: "1.2-2" }}</div>
+            </div>
+          </div>
+          <div class="mini-card glass-card total-tint">
+            <span class="mini-icon icon-primary"><i class="pi pi-users"></i></span>
+            <div>
+              <div class="mini-label">Groups</div>
+              <div class="mini-value">{{ totalGroups }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-template>
+  </section>
+
+  <section class="section">
+    <h2 class="section-heading">Preferences</h2>
+    <div class="pref-list">
+      <button type="button" class="pref-row glass-card" (click)="toggleTheme()">
+        <span class="pref-icon icon-primary">
+          <i class="pi" [class.pi-moon]="!themeService.isDark()" [class.pi-sun]="themeService.isDark()"></i>
+        </span>
+        <div class="pref-main">
+          <div class="pref-title">Appearance</div>
+          <div class="pref-sub muted">{{ themeService.isDark() ? 'Dark mode' : 'Light mode' }}</div>
+        </div>
+        <div class="switch" [class.on]="themeService.isDark()" aria-hidden="true">
+          <span class="switch-knob"></span>
+        </div>
+      </button>
+
+      <button type="button" class="pref-row glass-card" (click)="goToGroups()">
+        <span class="pref-icon icon-primary"><i class="pi pi-users"></i></span>
+        <div class="pref-main">
+          <div class="pref-title">Manage groups</div>
+          <div class="pref-sub muted">View, join or create groups</div>
+        </div>
+        <i class="pi pi-chevron-right pref-arrow"></i>
+      </button>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-heading">Account</h2>
+    <button type="button" class="btn btn-ghost logout-btn" (click)="logout()">
+      <i class="pi pi-sign-out"></i>
+      <span>Sign out</span>
+    </button>
+  </section>
+</div>

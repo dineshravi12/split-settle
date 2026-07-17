@@ -1,19 +1,96 @@
-<div class="login-container">
-  <div class="login-card">
-    <h1>Split & Settle 💸</h1>
-    <p class="subtitle">Split expenses, settle fairly</p>
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-      <label for="email">Email</label>
-      <input type="email" id="email" formControlName="email" pInputText />
-      <label for="password">Password</label>
-      <p-password id="password" formControlName="password" [toggleMask]="true" [feedback]="false"></p-password>
-      <button type="submit" pButton label="Sign In" [disabled]="loading" class="login-button">
-        {{ loading ? 'Signing in...' : 'Sign In' }}
-      </button>
-    </form>
-    <p class="register-link">
-      Don't have an account? <a routerLink="/register">Register</a>
-    </p>
-  </div>
+<div class="auth-page">
+  <aside class="auth-hero desktop-only" aria-hidden="true">
+    <div class="hero-content">
+      <div class="hero-mark">S</div>
+      <h1 class="hero-title">Split &amp; Settle</h1>
+      <p class="hero-tag">Group expenses without the math headaches.</p>
+      <ul class="hero-points">
+        <li><i class="pi pi-check-circle"></i> Track shared spending in seconds</li>
+        <li><i class="pi pi-check-circle"></i> Auto-calculated settlements</li>
+        <li><i class="pi pi-check-circle"></i> Perfect for trips, roommates &amp; teams</li>
+      </ul>
+    </div>
+    <span class="floater floater-1"></span>
+    <span class="floater floater-2"></span>
+    <span class="floater floater-3"></span>
+    <span class="floater floater-4"></span>
+  </aside>
+
+  <section class="auth-form-wrap">
+    <div
+      class="auth-card glass-panel"
+      [@shake]="shakeState()"
+    >
+      <div class="card-header">
+        <div class="card-mark">S</div>
+        <h2>Welcome back</h2>
+        <p class="subtitle muted">Sign in to keep track of your groups.</p>
+      </div>
+
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+        <div
+          class="field"
+          [class.filled]="!!loginForm.get('email')?.value"
+        >
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder=" "
+            autocomplete="email"
+          />
+          <label for="email">Email address</label>
+          <small
+            class="field-error"
+            *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid"
+          >
+            Enter a valid email
+          </small>
+        </div>
+
+        <div
+          class="field field--with-suffix"
+          [class.filled]="!!loginForm.get('password')?.value"
+        >
+          <input
+            id="password"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            placeholder=" "
+            autocomplete="current-password"
+          />
+          <label for="password">Password</label>
+          <button
+            type="button"
+            class="field-suffix"
+            (click)="togglePassword()"
+            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+          >
+            <i class="pi" [class.pi-eye]="!showPassword()" [class.pi-eye-slash]="showPassword()"></i>
+          </button>
+          <small
+            class="field-error"
+            *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid"
+          >
+            Password is required
+          </small>
+        </div>
+
+        <button
+          type="submit"
+          class="btn btn-primary submit-btn"
+          [class.loading]="loading()"
+          [disabled]="loading()"
+        >
+          <span class="label">Sign in</span>
+        </button>
+      </form>
+
+      <p class="switch-link">
+        New here? <a routerLink="/register">Create an account</a>
+      </p>
+    </div>
+  </section>
 </div>
-<p-toast></p-toast>
+
+<p-toast position="top-right"></p-toast>

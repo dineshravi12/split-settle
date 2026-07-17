@@ -1,96 +1,261 @@
-.login-container {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem;
+:host {
+  display: block;
+  min-height: 100vh;
 }
 
-.login-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-hero {
+  flex: 1;
+  position: relative;
+  background:
+    radial-gradient(at 30% 30%, rgba(255, 255, 255, 0.18) 0px, transparent 45%),
+    linear-gradient(135deg, #06b6d4 0%, #7c3aed 55%, #a855f7 100%);
+  color: #fff;
+  padding: 3rem;
+  display: none;
+  align-items: center;
+  overflow: hidden;
+}
+
+@media (min-width: 900px) {
+  .auth-hero {
+    display: flex;
+  }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 400px;
+}
+
+.hero-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 1.75rem;
+}
+
+.hero-title {
+  font-size: 2.75rem;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+.hero-tag {
+  font-size: 1.15rem;
+  opacity: 0.92;
+  margin: 0 0 2rem;
+  line-height: 1.5;
+}
+
+.hero-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hero-points li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.98rem;
+  opacity: 0.94;
+}
+
+.hero-points i {
+  opacity: 0.85;
+}
+
+.floater {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(1px);
+  opacity: 0.7;
+  animation: float-y 9s ease-in-out infinite;
+}
+
+.floater-1 {
+  width: 90px;
+  height: 90px;
+  background: rgba(255, 255, 255, 0.18);
+  top: 12%;
+  right: 15%;
+  animation-delay: 0s;
+}
+
+.floater-2 {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.14);
+  bottom: 22%;
+  right: 30%;
+  animation-delay: 1.5s;
+  animation-duration: 11s;
+}
+
+.floater-3 {
+  width: 140px;
+  height: 140px;
+  background: rgba(124, 58, 237, 0.25);
+  bottom: 8%;
+  right: 8%;
+  animation-delay: 3s;
+  animation-duration: 13s;
+}
+
+.floater-4 {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.22);
+  top: 30%;
+  right: 40%;
+  animation-delay: 0.7s;
+  animation-duration: 8s;
+}
+
+@keyframes float-y {
+  0%, 100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-24px) rotate(6deg);
+  }
+}
+
+.auth-form-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.auth-card {
   width: 100%;
   max-width: 420px;
-  padding: 2.5rem;
+  padding: 2.25rem 1.75rem;
+  animation: card-enter 500ms var(--ease-out);
 }
 
-.login-card h1 {
-  margin: 0 0 0.5rem 0;
+@media (min-width: 480px) {
+  .auth-card {
+    padding: 2.5rem 2.25rem;
+  }
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-header {
   text-align: center;
-  color: #333;
-  font-size: 2rem;
+  margin-bottom: 1.75rem;
 }
 
-.login-card .subtitle {
-  text-align: center;
-  color: #666;
-  margin-bottom: 2rem;
-  font-size: 1.1rem;
+.card-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 1rem;
+  border-radius: 14px;
+  background: var(--primary-gradient);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-md);
 }
 
-.login-card label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #444;
+@media (min-width: 900px) {
+  .card-mark {
+    display: none;
+  }
 }
 
-.login-card input[type="text"],
-.login-card input[type="email"],
-.login-card p-password {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1rem;
-  margin-bottom: 1.5rem;
-  box-sizing: border-box;
+.card-header h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
-.login-card input[type="text"]:focus,
-.login-card input[type="email"]:focus,
-.login-card p-password:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+.subtitle {
+  margin: 0;
+  font-size: 0.95rem;
 }
 
-.login-button {
-  width: 100%;
-  padding: 0.75rem;
-  background: #667eea;
-  color: white;
+.field--with-suffix input {
+  padding-right: 2.75rem;
+}
+
+.field-suffix {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
 }
 
-.login-button:hover:not(:disabled) {
-  background: #5a67d8;
+.field-suffix:hover {
+  color: var(--primary);
+  background: var(--primary-light);
 }
 
-.login-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+.submit-btn {
+  width: 100%;
+  padding: 0.95rem 1.25rem;
+  font-size: 1rem;
+  margin-top: 0.35rem;
 }
 
-.register-link {
+.switch-link {
   text-align: center;
-  margin-top: 1.5rem;
-  font-size: 0.9rem;
+  margin: 1.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
 }
 
-.register-link a {
-  color: #667eea;
-  text-decoration: none;
-}
-
-.register-link a:hover {
-  text-decoration: underline;
+.switch-link a {
+  color: var(--primary);
+  font-weight: 600;
+  margin-left: 0.25rem;
 }

@@ -1,4 +1,11 @@
-import { Component, OnInit } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  inject,
+  signal,
+} from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
 import {
@@ -7,16 +14,16 @@ import {
   Validators,
   ReactiveFormsModule,
 } from "@angular/forms";
-import { TabViewModule } from "primeng/tabview";
-import { ButtonModule } from "primeng/button";
-import { DialogModule } from "primeng/dialog";
-import { InputTextModule } from "primeng/inputtext";
-import { InputNumberModule } from "primeng/inputnumber";
-import { DropdownModule } from "primeng/dropdown";
-import { ProgressSpinnerModule } from "primeng/progressspinner";
+import {
+  trigger,
+  transition,
+  query,
+  stagger,
+  animate,
+  style,
+} from "@angular/animations";
 import { ToastModule } from "primeng/toast";
 import { ConfirmDialogModule } from "primeng/confirmdialog";
-import { TagModule } from "primeng/tag";
 import { ConfirmationService, MessageService } from "primeng/api";
 import { GroupService } from "../../../core/services/group.service";
 import { ExpenseService } from "../../../core/services/expense.service";
@@ -26,16 +33,27 @@ import { Group } from "../../../core/models/group.model";
 import { Expense } from "../../../core/models/expense.model";
 import { Settlement } from "../../../core/models/settlement.model";
 import { User } from "../../../core/models/user.model";
-import { HeaderComponent } from "../../../shared/components/header/header.component";
+import { SkeletonLoaderComponent } from "../../../shared/components/skeleton-loader/skeleton-loader.component";
+import { FabComponent } from "../../../shared/components/fab/fab.component";
 
 interface CategoryOption {
   label: string;
   value: string;
+  icon: string;
 }
 
 interface MemberOption {
   label: string;
   value: number;
+}
+
+type TabKey = "expenses" | "settlements";
+
+interface ConfettiPiece {
+  left: number;
+  color: string;
+  delay: number;
+  duration: number;
 }
 
 @Component({
@@ -44,23 +62,47 @@ interface MemberOption {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    TabViewModule,
-    ButtonModule,
-    DialogModule,
-    InputTextModule,
-    InputNumberModule,
-    DropdownModule,
-    ProgressSpinnerModule,
     ToastModule,
     ConfirmDialogModule,
-    TagModule,
-    HeaderComponent,
+    SkeletonLoaderComponent,
+    FabComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: "./group-detail.component.html",
   styleUrls: ["./group-detail.component.scss"],
+  animations: [
+    trigger("listStagger", [
+      transition("* => *", [
+        query(
+          ":enter",
+          [
+            style({ opacity: 0, transform: "translateY(12px)" }),
+            stagger(50, [
+              animate(
+                "280ms cubic-bezier(0.16, 1, 0.3, 1)",
+                style({ opacity: 1, transform: "translateY(0)" }),
+              ),
+            ]),
+          ],
+          { optional: true },
+        ),
+      ]),
+    ]),
+  ],
 })
 export class GroupDetailComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private groupService = inject(GroupService);
+  private expenseService = inject(ExpenseService);
+  private settlementService = inject(SettlementService);
+  private authService = inject(AuthService);
+  private messageService = inject(MessageService);
+  private confirmationService = inject(ConfirmationService);
+
+  @ViewChild("tabs", { static: false }) tabsRef?: ElementRef<HTMLDivElement>;
+
   groupId = 0;
   currentUserId = 0;
   loading = true;
@@ -71,6 +113,8 @@ export class GroupDetailComponent implements OnInit {
   settlements: Settlement[] = [];
   loadingSettlements = false;
 
+  activeTab = signal<TabKey>("expenses");
+
   showMemberDialog = false;
   memberForm: FormGroup;
   addingMember = false;
@@ -80,27 +124,27 @@ export class GroupDetailComponent implements OnInit {
   addingExpense = false;
 
   settling: { [key: string]: boolean } = {};
+  settledKey = signal<string | null>(null);
+
+  swipeState: { [id: number]: number } = {};
+  private swipeStart: { [id: number]: { x: number; y: number } } = {};
+  private swipeLocked: { [id: number]: boolean } = {};
+  private swipeAxis: { [id: number]: "x" | "y" | null } = {};
+  readonly swipeThreshold = 72;
+
+  confetti = signal<ConfettiPiece[] | null>(null);
+  private prevSettlementCount = -1;
 
   categoryOptions: CategoryOption[] = [
-    { label: "Food", value: "Food" },
-    { label: "Travel", value: "Travel" },
-    { label: "Utilities", value: "Utilities" },
-    { label: "Entertainment", value: "Entertainment" },
-    { label: "Other", value: "Other" },
+    { label: "Food", value: "Food", icon: "pi-shopping-cart" },
+    { label: "Travel", value: "Travel", icon: "pi-car" },
+    { label: "Utilities", value: "Utilities", icon: "pi-bolt" },
+    { label: "Entertainment", value: "Entertainment", icon: "pi-star" },
+    { label: "Other", value: "Other", icon: "pi-tag" },
   ];
   memberOptions: MemberOption[] = [];
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private fb: FormBuilder,
-    private groupService: GroupService,
-    private expenseService: ExpenseService,
-    private settlementService: SettlementService,
-    private authService: AuthService,
-    private messageService: MessageService,
-    private confirmationService: ConfirmationService,
-  ) {
+  constructor() {
     this.currentUserId = this.authService.getCurrentUserId();
     this.memberForm = this.fb.group({
       email: ["", [Validators.required, Validators.email]],
@@ -164,13 +208,34 @@ export class GroupDetailComponent implements OnInit {
     this.loadingSettlements = true;
     this.settlementService.getSettlements(this.groupId).subscribe({
       next: (settlements) => {
+        const prev = this.prevSettlementCount;
         this.settlements = settlements;
         this.loadingSettlements = false;
+        if (prev > 0 && settlements.length === 0) {
+          this.launchConfetti();
+        }
+        this.prevSettlementCount = settlements.length;
       },
       error: () => {
         this.loadingSettlements = false;
       },
     });
+  }
+
+  goBack(): void {
+    this.router.navigate(["/groups"]);
+  }
+
+  // Tabs
+  setTab(tab: TabKey): void {
+    this.activeTab.set(tab);
+  }
+
+  // Categories
+  categoryIcon(category: string): string {
+    return (
+      this.categoryOptions.find((c) => c.value === category)?.icon ?? "pi-tag"
+    );
   }
 
   // Members
@@ -180,6 +245,7 @@ export class GroupDetailComponent implements OnInit {
   }
 
   closeMemberDialog(): void {
+    if (this.addingMember) return;
     this.showMemberDialog = false;
   }
 
@@ -201,8 +267,8 @@ export class GroupDetailComponent implements OnInit {
         this.showMemberDialog = false;
         this.messageService.add({
           severity: "success",
-          summary: "Member Added",
-          detail: `${email} was added to the group`,
+          summary: "Member added",
+          detail: `${email} joined the group`,
         });
         this.loadSettlements();
       },
@@ -211,7 +277,7 @@ export class GroupDetailComponent implements OnInit {
         this.messageService.add({
           severity: "error",
           summary: "Error",
-          detail: error.error?.message || "User not found",
+          detail: error?.error?.message || "User not found",
         });
       },
     });
@@ -229,6 +295,7 @@ export class GroupDetailComponent implements OnInit {
   }
 
   closeExpenseDialog(): void {
+    if (this.addingExpense) return;
     this.showExpenseDialog = false;
   }
 
@@ -253,8 +320,8 @@ export class GroupDetailComponent implements OnInit {
           this.showExpenseDialog = false;
           this.messageService.add({
             severity: "success",
-            summary: "Expense Added",
-            detail: `"${v.description}" was added`,
+            summary: "Expense added",
+            detail: `"${v.description}" added`,
           });
           this.loadExpenses();
           this.loadSettlements();
@@ -264,7 +331,7 @@ export class GroupDetailComponent implements OnInit {
           this.messageService.add({
             severity: "error",
             summary: "Error",
-            detail: error.error?.message || "Failed to add expense",
+            detail: error?.error?.message || "Failed to add expense",
           });
         },
       });
@@ -272,16 +339,18 @@ export class GroupDetailComponent implements OnInit {
 
   confirmDeleteExpense(expense: Expense): void {
     this.confirmationService.confirm({
-      message: "Delete this expense?",
-      header: "Confirm",
+      message: `Delete "${expense.description}"?`,
+      header: "Confirm delete",
       icon: "pi pi-exclamation-triangle",
       accept: () => this.deleteExpense(expense),
+      reject: () => this.resetSwipe(expense.id),
     });
   }
 
   deleteExpense(expense: Expense): void {
     this.expenseService.deleteExpense(expense.id).subscribe({
       next: () => {
+        this.resetSwipe(expense.id);
         this.messageService.add({
           severity: "success",
           summary: "Deleted",
@@ -291,13 +360,63 @@ export class GroupDetailComponent implements OnInit {
         this.loadSettlements();
       },
       error: (error) => {
+        this.resetSwipe(expense.id);
         this.messageService.add({
           severity: "error",
           summary: "Error",
-          detail: error.error?.message || "Failed to delete expense",
+          detail: error?.error?.message || "Failed to delete expense",
         });
       },
     });
+  }
+
+  // Swipe handlers
+  onSwipeStart(event: TouchEvent, expenseId: number): void {
+    const t = event.touches[0];
+    this.swipeStart[expenseId] = { x: t.clientX, y: t.clientY };
+    this.swipeLocked[expenseId] = false;
+    this.swipeAxis[expenseId] = null;
+  }
+
+  onSwipeMove(event: TouchEvent, expenseId: number): void {
+    const start = this.swipeStart[expenseId];
+    if (!start) return;
+    const t = event.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+
+    if (!this.swipeAxis[expenseId]) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        this.swipeAxis[expenseId] = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      }
+    }
+
+    if (this.swipeAxis[expenseId] !== "x") return;
+
+    event.preventDefault();
+    const clamped = Math.max(-140, Math.min(0, dx));
+    this.swipeState[expenseId] = clamped;
+  }
+
+  onSwipeEnd(expense: Expense): void {
+    const dx = this.swipeState[expense.id] ?? 0;
+    if (Math.abs(dx) > this.swipeThreshold) {
+      this.swipeState[expense.id] = -100;
+      this.confirmDeleteExpense(expense);
+    } else {
+      this.resetSwipe(expense.id);
+    }
+    delete this.swipeStart[expense.id];
+    delete this.swipeAxis[expense.id];
+  }
+
+  resetSwipe(id: number): void {
+    this.swipeState[id] = 0;
+  }
+
+  swipeTransform(id: number): string {
+    const dx = this.swipeState[id] ?? 0;
+    return `translateX(${dx}px)`;
   }
 
   // Settlements
@@ -328,7 +447,7 @@ export class GroupDetailComponent implements OnInit {
   confirmSettle(s: Settlement): void {
     this.confirmationService.confirm({
       message: `Mark "${this.settlementText(s)}" as settled?`,
-      header: "Settle Up",
+      header: "Settle up",
       icon: "pi pi-check-circle",
       accept: () => this.settleUp(s),
     });
@@ -340,19 +459,23 @@ export class GroupDetailComponent implements OnInit {
     this.settlementService.settleUp(this.groupId, s.fromId, s.toId).subscribe({
       next: () => {
         this.settling[key] = false;
-        this.messageService.add({
-          severity: "success",
-          summary: "Settled",
-          detail: "Balance cleared",
-        });
-        this.loadSettlements();
+        this.settledKey.set(key);
+        setTimeout(() => {
+          this.settledKey.set(null);
+          this.loadSettlements();
+          this.messageService.add({
+            severity: "success",
+            summary: "Settled",
+            detail: "Balance cleared",
+          });
+        }, 700);
       },
       error: (error) => {
         this.settling[key] = false;
         this.messageService.add({
           severity: "error",
           summary: "Error",
-          detail: error.error?.message || "Failed to settle",
+          detail: error?.error?.message || "Failed to settle",
         });
       },
     });
@@ -362,20 +485,31 @@ export class GroupDetailComponent implements OnInit {
     return !!this.settling[this.settlementKey(s)];
   }
 
-  categorySeverity(
-    category: string,
-  ): "info" | "success" | "warn" | "danger" | "secondary" | "contrast" {
-    switch (category) {
-      case "Food":
-        return "warn";
-      case "Travel":
-        return "info";
-      case "Utilities":
-        return "secondary";
-      case "Entertainment":
-        return "success";
-      default:
-        return "contrast";
-    }
+  isSettled(s: Settlement): boolean {
+    return this.settledKey() === this.settlementKey(s);
+  }
+
+  categoryClass(category: string): string {
+    return `cat cat-${(category || "other").toLowerCase()}`;
+  }
+
+  trackExpense(_: number, e: Expense): number {
+    return e.id;
+  }
+
+  trackSettlement(_: number, s: Settlement): string {
+    return this.settlementKey(s);
+  }
+
+  private launchConfetti(): void {
+    const colors = ["#7c3aed", "#a855f7", "#06b6d4", "#22c55e", "#f59e0b"];
+    const pieces: ConfettiPiece[] = Array.from({ length: 60 }, () => ({
+      left: Math.random() * 100,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 400,
+      duration: 2200 + Math.random() * 1500,
+    }));
+    this.confetti.set(pieces);
+    setTimeout(() => this.confetti.set(null), 4000);
   }
 }
