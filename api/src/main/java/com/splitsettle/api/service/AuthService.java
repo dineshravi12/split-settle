@@ -2,6 +2,7 @@ package com.splitsettle.api.service;
 
 import com.splitsettle.api.dto.AuthRequest;
 import com.splitsettle.api.dto.AuthResponse;
+import com.splitsettle.api.dto.RegisterRequest;
 import com.splitsettle.api.entity.User;
 import com.splitsettle.api.exception.BadCredentialsException;
 import com.splitsettle.api.exception.UserAlreadyExistsException;
@@ -25,7 +26,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
-    public AuthResponse register(AuthRequest request) {
+    public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new UserAlreadyExistsException("User with email " + request.getEmail() + " already exists");
         }

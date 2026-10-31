@@ -36,6 +36,11 @@ public class Expense {
     @Column(length = 50)
     private String category = "General";
 
+    // Null on rows created before split types existed; treated as EQUAL
+    @Enumerated(EnumType.STRING)
+    @Column(name = "split_type", length = 20)
+    private SplitType splitType;
+
     @Builder.Default
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

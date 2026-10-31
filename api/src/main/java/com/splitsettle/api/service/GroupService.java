@@ -2,6 +2,7 @@ package com.splitsettle.api.service;
 
 import com.splitsettle.api.dto.GroupDTO;
 import com.splitsettle.api.dto.GroupMemberDTO;
+import com.splitsettle.api.entity.ActivityType;
 import com.splitsettle.api.entity.Group;
 import com.splitsettle.api.entity.GroupMember;
 import com.splitsettle.api.entity.User;
@@ -22,6 +23,8 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
+    private final GroupAccessService groupAccess;
+    private final ActivityService activityService;
 
     @Transactional
     public GroupDTO createGroup(String name, Long userId) {
@@ -41,8 +44,13 @@ public class GroupService {
                 .user(creator)
                 .build();
         groupMemberRepository.save(member);
+        activityService.record(group, creator, ActivityType.GROUP_CREATED, null, group.getName(), null);
 
-        return mapToDTO(group);
+        return GroupDTO.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .members(List.of(toMemberDTO(creator)))
+                .build();
     }
 
     public List<GroupDTO> getUserGroups(Long userId) {
@@ -52,14 +60,16 @@ public class GroupService {
                 .collect(Collectors.toList());
     }
 
-    public GroupDTO getGroupById(Long groupId) {
+    public GroupDTO getGroupById(Long groupId, Long requesterId) {
+        groupAccess.requireMember(groupId, requesterId);
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
         return mapToDTO(group);
     }
 
     @Transactional
-    public GroupDTO addMemberByEmail(Long groupId, String email) {
+    public GroupDTO addMemberByEmail(Long groupId, String email, Long requesterId) {
+        groupAccess.requireMember(groupId, requesterId);
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
 
@@ -75,6 +85,8 @@ public class GroupService {
                 .user(user)
                 .build();
         groupMemberRepository.save(member);
+        activityService.record(group, userRepository.getReferenceById(requesterId), ActivityType.MEMBER_ADDED,
+                user, null, null);
 
         return mapToDTO(group);
     }
@@ -82,17 +94,21 @@ public class GroupService {
     private GroupDTO mapToDTO(Group group) {
         List<GroupMemberDTO> memberDTOs = group.getMembers() == null ? List.of() :
                 group.getMembers().stream()
-                        .map(m -> GroupMemberDTO.builder()
-                                .userId(m.getUser().getId())
-                                .name(m.getUser().getName())
-                                .email(m.getUser().getEmail())
-                                .build())
+                        .map(m -> toMemberDTO(m.getUser()))
                         .collect(Collectors.toList());
 
         return GroupDTO.builder()
                 .id(group.getId())
                 .name(group.getName())
                 .members(memberDTOs)
+                .build();
+    }
+
+    private GroupMemberDTO toMemberDTO(User user) {
+        return GroupMemberDTO.builder()
+                .userId(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
                 .build();
     }
 }

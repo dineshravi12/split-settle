@@ -46,30 +46,23 @@
         </div>
       </section>
 
-      <div class="tabs glass-card" #tabs>
+      <div class="tabs glass-card" role="tablist">
         <button
+          *ngFor="let t of tabs"
           type="button"
+          role="tab"
           class="tab"
-          [class.active]="activeTab() === 'expenses'"
-          (click)="setTab('expenses')"
+          [attr.aria-selected]="activeTab() === t.key"
+          [class.active]="activeTab() === t.key"
+          (click)="setTab(t.key)"
         >
-          <i class="pi pi-wallet"></i>
-          <span>Expenses</span>
-          <span class="tab-count" *ngIf="expenses.length">{{ expenses.length }}</span>
-        </button>
-        <button
-          type="button"
-          class="tab"
-          [class.active]="activeTab() === 'settlements'"
-          (click)="setTab('settlements')"
-        >
-          <i class="pi pi-arrow-right-arrow-left"></i>
-          <span>Settlements</span>
-          <span class="tab-count" *ngIf="settlements.length">{{ settlements.length }}</span>
+          <i class="pi" [class]="t.icon"></i>
+          <span>{{ t.label }}</span>
+          <span class="tab-count" *ngIf="tabCount(t.key) as count">{{ count }}</span>
         </button>
         <span
           class="tab-indicator"
-          [class.right]="activeTab() === 'settlements'"
+          [style.transform]="'translateX(' + tabIndex() * 100 + '%)'"
         ></span>
       </div>
 
@@ -79,7 +72,7 @@
           <button
             type="button"
             class="btn btn-primary desktop-only"
-            (click)="openExpenseDialog()"
+            (click)="openExpenseForm()"
           >
             <i class="pi pi-plus"></i> Add expense
           </button>
@@ -118,6 +111,7 @@
             <div
               *ngFor="let e of expenses; trackBy: trackExpense"
               class="expense-row"
+              [class.swiping]="swipeState[e.id] < 0"
             >
               <div class="delete-slot">
                 <button
@@ -132,6 +126,7 @@
               <div
                 class="expense-card glass-card"
                 [style.transform]="swipeTransform(e.id)"
+                (click)="onExpenseClick(e)"
                 (touchstart)="onSwipeStart($event, e.id)"
                 (touchmove)="onSwipeMove($event, e.id)"
                 (touchend)="onSwipeEnd(e)"
@@ -143,17 +138,38 @@
                 <div class="expense-main">
                   <div class="expense-top">
                     <span class="expense-desc">{{ e.description }}</span>
+                    <span class="split-badge" *ngIf="e.splitType !== 'EQUAL'">
+                      {{ e.splitType === "PERCENTAGE" ? "By %" : "Exact" }}
+                    </span>
                   </div>
                   <div class="expense-meta muted">
-                    Paid by {{ e.paidByName }} · {{ e.createdAt | date: "MMM d" }}
+                    {{ e.paidByUserId === currentUserId ? "You" : e.paidByName }} paid
+                    ₹{{ e.amount | number: "1.0-2" }} · {{ e.createdAt | date: "MMM d" }}
                   </div>
                 </div>
-                <div class="expense-right">
-                  <span class="expense-amount">₹{{ e.amount | number: "1.2-2" }}</span>
+                <div
+                  *ngIf="shareInfo(e) as share"
+                  class="expense-right"
+                  [class]="'share-' + share.tone"
+                >
+                  <span class="share-label">{{ share.label }}</span>
+                  <span class="share-amount" *ngIf="share.amount !== null">
+                    ₹{{ share.amount | number: "1.2-2" }}
+                  </span>
+                </div>
+                <div class="expense-actions desktop-only">
                   <button
                     type="button"
-                    class="icon-inline desktop-only"
-                    (click)="confirmDeleteExpense(e)"
+                    class="icon-inline"
+                    (click)="openExpenseForm(e); $event.stopPropagation()"
+                    aria-label="Edit expense"
+                  >
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-inline danger"
+                    (click)="confirmDeleteExpense(e); $event.stopPropagation()"
                     aria-label="Delete expense"
                   >
                     <i class="pi pi-trash"></i>
@@ -165,13 +181,25 @@
         </ng-container>
       </section>
 
-      <!-- Settlements tab -->
-      <section *ngIf="activeTab() === 'settlements'" class="tab-panel">
+      <!-- Balances tab -->
+      <section *ngIf="activeTab() === 'balances'" class="tab-panel">
         <app-skeleton-loader
           *ngIf="loadingSettlements"
           type="list"
           [rows]="3"
         ></app-skeleton-loader>
+
+        <div class="balances-toolbar" *ngIf="!loadingSettlements && mySettlementCount() > 1">
+          <button
+            type="button"
+            class="btn btn-primary small-btn"
+            [class.loading]="settlingAll"
+            [disabled]="settlingAll"
+            (click)="confirmSettleAll()"
+          >
+            <span class="label"><i class="pi pi-check-square"></i> Settle all mine ({{ mySettlementCount() }})</span>
+          </button>
+        </div>
 
         <ng-container *ngIf="!loadingSettlements">
           <div *ngIf="settlements.length === 0" class="empty-state glass-panel">
@@ -220,15 +248,29 @@
           </div>
         </ng-container>
       </section>
+
+      <!-- Activity tab -->
+      <section *ngIf="activeTab() === 'activity'" class="tab-panel">
+        <app-skeleton-loader
+          *ngIf="loadingActivity"
+          type="list"
+          [rows]="4"
+        ></app-skeleton-loader>
+        <app-activity-feed
+          *ngIf="!loadingActivity"
+          [items]="activities"
+          [currentUserId]="currentUserId"
+        ></app-activity-feed>
+      </section>
     </ng-container>
   </ng-template>
 </div>
 
 <app-fab
   *ngIf="!loading && group"
-  [icon]="activeTab() === 'expenses' ? 'pi-plus' : 'pi-user-plus'"
-  [ariaLabel]="activeTab() === 'expenses' ? 'Add an expense' : 'Add a member'"
-  (fabClick)="activeTab() === 'expenses' ? openExpenseDialog() : openMemberDialog()"
+  icon="pi-plus"
+  ariaLabel="Add an expense"
+  (fabClick)="openExpenseForm()"
 ></app-fab>
 
 <!-- Member sheet -->
@@ -283,100 +325,16 @@
   </div>
 </ng-container>
 
-<!-- Expense sheet -->
-<ng-container *ngIf="showExpenseDialog">
-  <div class="sheet-backdrop" (click)="closeExpenseDialog()"></div>
-  <div class="bottom-sheet" role="dialog" aria-labelledby="expenseTitle">
-    <div class="sheet-header">
-      <h2 id="expenseTitle">Add an expense</h2>
-      <button
-        type="button"
-        class="icon-close"
-        aria-label="Close"
-        (click)="closeExpenseDialog()"
-      >
-        <i class="pi pi-times"></i>
-      </button>
-    </div>
-
-    <form [formGroup]="expenseForm" (ngSubmit)="addExpense()" novalidate>
-      <div class="field" [class.filled]="!!expenseForm.get('description')?.value">
-        <input
-          id="expenseDesc"
-          type="text"
-          formControlName="description"
-          placeholder=" "
-        />
-        <label for="expenseDesc">Description</label>
-      </div>
-
-      <div class="field" [class.filled]="expenseForm.get('amount')?.value != null && expenseForm.get('amount')?.value !== ''">
-        <input
-          id="expenseAmount"
-          type="number"
-          formControlName="amount"
-          placeholder=" "
-          min="1"
-          step="0.01"
-          inputmode="decimal"
-        />
-        <label for="expenseAmount">Amount (₹)</label>
-        <small
-          class="field-error"
-          *ngIf="expenseForm.get('amount')?.touched && expenseForm.get('amount')?.invalid"
-        >
-          Enter an amount above ₹1
-        </small>
-      </div>
-
-      <label class="stack-label">Category</label>
-      <div class="chip-row">
-        <button
-          type="button"
-          *ngFor="let c of categoryOptions"
-          class="chip-btn"
-          [class.selected]="expenseForm.get('category')?.value === c.value"
-          (click)="expenseForm.get('category')?.setValue(c.value)"
-        >
-          <i class="pi" [class]="c.icon"></i>
-          {{ c.label }}
-        </button>
-      </div>
-
-      <label for="expensePaidBy" class="stack-label">Paid by</label>
-      <select
-        id="expensePaidBy"
-        formControlName="paidBy"
-        class="field-select"
-      >
-        <option [ngValue]="null" disabled>Select member</option>
-        <option *ngFor="let m of memberOptions" [ngValue]="m.value">
-          {{ m.label }}
-        </option>
-      </select>
-      <small
-        class="field-error"
-        *ngIf="expenseForm.get('paidBy')?.touched && expenseForm.get('paidBy')?.invalid"
-      >
-        Select who paid
-      </small>
-
-      <div class="sheet-actions">
-        <button type="button" class="btn btn-ghost" (click)="closeExpenseDialog()">
-          Cancel
-        </button>
-        <button
-          type="submit"
-          class="btn btn-primary"
-          [class.loading]="addingExpense"
-          [disabled]="addingExpense"
-        >
-          <span class="label">Add expense</span>
-        </button>
-      </div>
-    </form>
-  </div>
-</ng-container>
+<!-- Expense add/edit sheet -->
+<app-expense-form
+  *ngIf="showExpenseForm && group"
+  [groupId]="groupId"
+  [members]="group.members"
+  [currentUserId]="currentUserId"
+  [expense]="editingExpense"
+  (saved)="onExpenseSaved($event)"
+  (closed)="closeExpenseForm()"
+></app-expense-form>
 
 <!-- Confetti overlay -->
 <div class="confetti-wrap" *ngIf="confetti() as pieces" aria-hidden="true">

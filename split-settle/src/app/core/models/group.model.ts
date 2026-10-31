@@ -1,8 +1,12 @@
-import { User } from './user.model';
+export interface GroupMember {
+  userId: number;
+  name: string;
+  email: string;
+}
 
 export interface Group {
   id: number;
   name: string;
   createdBy: number;
-  members: User[];
+  members: GroupMember[];
 }

@@ -1,11 +1,11 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/splitsettle
-    username: root
-    password: root
+    url: ${DB_URL:jdbc:mysql://localhost:3306/splitsettle}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -17,8 +17,13 @@ spring:
         format_sql: true
 
 jwt:
-  secret: splitsettle-super-secret-jwt-key-2024-minimum-256-bits-long
-  expiration: 86400000
+  # Local-dev fallback only; the prod profile requires JWT_SECRET
+  secret: ${JWT_SECRET:local-dev-only-jwt-secret-never-use-in-production-2026}
+  expiration: ${JWT_EXPIRATION_MS:86400000}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
 
 springdoc:
   api-docs:

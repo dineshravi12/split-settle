@@ -12,5 +12,6 @@ public class ExpenseSplitDTO {
     private Long userId;
     private String userName;
     private BigDecimal amountOwed;
+    private BigDecimal percentage;
     private Boolean isSettled;
 }

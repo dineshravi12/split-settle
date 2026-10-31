@@ -32,6 +32,10 @@ public class ExpenseSplit {
     @Column(name = "amount_owed", nullable = false, precision = 10, scale = 2)
     private BigDecimal amountOwed;
 
+    // The entered percentage for PERCENTAGE splits, kept so edits show the original input
+    @Column(precision = 5, scale = 2)
+    private BigDecimal percentage;
+
     @Column(name = "is_settled", nullable = false)
     private Boolean isSettled;
 

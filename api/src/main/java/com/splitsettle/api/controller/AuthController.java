@@ -2,6 +2,7 @@ package com.splitsettle.api.controller;
 
 import com.splitsettle.api.dto.AuthRequest;
 import com.splitsettle.api.dto.AuthResponse;
+import com.splitsettle.api.dto.RegisterRequest;
 import com.splitsettle.api.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
 

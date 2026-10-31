@@ -1,0 +1,20 @@
+<ol class="feed" *ngIf="entries.length; else empty">
+  <li *ngFor="let e of entries; trackBy: trackById" class="feed-item">
+    <span class="feed-icon" [class]="'tone-' + e.tone">
+      <i class="pi" [class]="e.icon"></i>
+    </span>
+    <div class="feed-body">
+      <p class="feed-text"><strong>{{ e.actor }}</strong> {{ e.action }}</p>
+      <time class="feed-time" [attr.title]="e.exactTime">{{ e.when }}</time>
+    </div>
+    <span class="feed-amount" *ngIf="e.amount !== null">₹{{ e.amount | number: "1.2-2" }}</span>
+  </li>
+</ol>
+
+<ng-template #empty>
+  <div class="empty-state glass-panel">
+    <div class="icon"><i class="pi pi-history"></i></div>
+    <h3>No activity yet</h3>
+    <p>Expenses, edits, new members and payments will show up here.</p>
+  </div>
+</ng-template>

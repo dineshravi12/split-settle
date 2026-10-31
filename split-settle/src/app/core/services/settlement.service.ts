@@ -27,4 +27,8 @@ export class SettlementService {
       toUserId,
     });
   }
+
+  settleAll(groupId: number): Observable<{ settled: number }> {
+    return this.http.post<{ settled: number }>(`${this.apiUrl}/${groupId}/settle-all`, {});
+  }
 }

@@ -1,7 +1,9 @@
 package com.splitsettle.api.dto;
 
+import com.splitsettle.api.entity.SplitType;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -16,5 +18,7 @@ public class ExpenseDTO {
     private String description;
     private BigDecimal amount;
     private String category;
+    private SplitType splitType;
+    private Instant createdAt;
     private List<ExpenseSplitDTO> splits;
 }

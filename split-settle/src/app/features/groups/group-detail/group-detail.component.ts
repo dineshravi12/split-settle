@@ -1,11 +1,4 @@
-import {
-  Component,
-  ElementRef,
-  OnInit,
-  ViewChild,
-  inject,
-  signal,
-} from "@angular/core";
+import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
 import {
@@ -30,30 +23,27 @@ import { ExpenseService } from "../../../core/services/expense.service";
 import { SettlementService } from "../../../core/services/settlement.service";
 import { AuthService } from "../../../core/services/auth.service";
 import { Group } from "../../../core/models/group.model";
-import { Expense } from "../../../core/models/expense.model";
+import { EXPENSE_CATEGORIES, Expense } from "../../../core/models/expense.model";
 import { Settlement } from "../../../core/models/settlement.model";
-import { User } from "../../../core/models/user.model";
+import { Activity } from "../../../core/models/activity.model";
 import { SkeletonLoaderComponent } from "../../../shared/components/skeleton-loader/skeleton-loader.component";
 import { FabComponent } from "../../../shared/components/fab/fab.component";
+import { ExpenseFormComponent } from "./expense-form/expense-form.component";
+import { ActivityFeedComponent } from "./activity-feed/activity-feed.component";
 
-interface CategoryOption {
-  label: string;
-  value: string;
-  icon: string;
-}
-
-interface MemberOption {
-  label: string;
-  value: number;
-}
-
-type TabKey = "expenses" | "settlements";
+type TabKey = "expenses" | "balances" | "activity";
 
 interface ConfettiPiece {
   left: number;
   color: string;
   delay: number;
   duration: number;
+}
+
+interface ShareInfo {
+  label: string;
+  amount: number | null;
+  tone: "lent" | "borrowed" | "none";
 }
 
 @Component({
@@ -66,6 +56,8 @@ interface ConfettiPiece {
     ConfirmDialogModule,
     SkeletonLoaderComponent,
     FabComponent,
+    ExpenseFormComponent,
+    ActivityFeedComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: "./group-detail.component.html",
@@ -101,7 +93,11 @@ export class GroupDetailComponent implements OnInit {
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
 
-  @ViewChild("tabs", { static: false }) tabsRef?: ElementRef<HTMLDivElement>;
+  readonly tabs: { key: TabKey; label: string; icon: string }[] = [
+    { key: "expenses", label: "Expenses", icon: "pi-wallet" },
+    { key: "balances", label: "Balances", icon: "pi-arrow-right-arrow-left" },
+    { key: "activity", label: "Activity", icon: "pi-history" },
+  ];
 
   groupId = 0;
   currentUserId = 0;
@@ -112,48 +108,38 @@ export class GroupDetailComponent implements OnInit {
   loadingExpenses = false;
   settlements: Settlement[] = [];
   loadingSettlements = false;
+  activities: Activity[] = [];
+  loadingActivity = false;
+  private activityLoaded = false;
 
   activeTab = signal<TabKey>("expenses");
+  tabIndex = computed(() => this.tabs.findIndex((t) => t.key === this.activeTab()));
 
   showMemberDialog = false;
   memberForm: FormGroup;
   addingMember = false;
 
-  showExpenseDialog = false;
-  expenseForm: FormGroup;
-  addingExpense = false;
+  showExpenseForm = false;
+  editingExpense: Expense | null = null;
 
   settling: { [key: string]: boolean } = {};
+  settlingAll = false;
   settledKey = signal<string | null>(null);
 
   swipeState: { [id: number]: number } = {};
   private swipeStart: { [id: number]: { x: number; y: number } } = {};
-  private swipeLocked: { [id: number]: boolean } = {};
   private swipeAxis: { [id: number]: "x" | "y" | null } = {};
+  // Set when a touch turned into a horizontal swipe, so the trailing click doesn't open the editor
+  private swipeMoved: { [id: number]: boolean } = {};
   readonly swipeThreshold = 72;
 
   confetti = signal<ConfettiPiece[] | null>(null);
   private prevSettlementCount = -1;
 
-  categoryOptions: CategoryOption[] = [
-    { label: "Food", value: "Food", icon: "pi-shopping-cart" },
-    { label: "Travel", value: "Travel", icon: "pi-car" },
-    { label: "Utilities", value: "Utilities", icon: "pi-bolt" },
-    { label: "Entertainment", value: "Entertainment", icon: "pi-star" },
-    { label: "Other", value: "Other", icon: "pi-tag" },
-  ];
-  memberOptions: MemberOption[] = [];
-
   constructor() {
     this.currentUserId = this.authService.getCurrentUserId();
     this.memberForm = this.fb.group({
       email: ["", [Validators.required, Validators.email]],
-    });
-    this.expenseForm = this.fb.group({
-      description: ["", Validators.required],
-      amount: [null, [Validators.required, Validators.min(1)]],
-      category: ["Other", Validators.required],
-      paidBy: [null, Validators.required],
     });
   }
 
@@ -174,10 +160,6 @@ export class GroupDetailComponent implements OnInit {
     this.groupService.getGroup(this.groupId).subscribe({
       next: (group) => {
         this.group = group;
-        this.memberOptions = (group.members || []).map((m: User) => ({
-          label: m.name,
-          value: m.id,
-        }));
         this.loading = false;
       },
       error: () => {
@@ -222,6 +204,20 @@ export class GroupDetailComponent implements OnInit {
     });
   }
 
+  loadActivity(): void {
+    this.loadingActivity = true;
+    this.groupService.getActivity(this.groupId).subscribe({
+      next: (activities) => {
+        this.activities = activities;
+        this.activityLoaded = true;
+        this.loadingActivity = false;
+      },
+      error: () => {
+        this.loadingActivity = false;
+      },
+    });
+  }
+
   goBack(): void {
     this.router.navigate(["/groups"]);
   }
@@ -229,13 +225,38 @@ export class GroupDetailComponent implements OnInit {
   // Tabs
   setTab(tab: TabKey): void {
     this.activeTab.set(tab);
+    if (tab === "activity" && !this.activityLoaded && !this.loadingActivity) {
+      this.loadActivity();
+    }
+  }
+
+  tabCount(tab: TabKey): number {
+    if (tab === "expenses") return this.expenses.length;
+    if (tab === "balances") return this.settlements.length;
+    return 0;
   }
 
   // Categories
   categoryIcon(category: string): string {
-    return (
-      this.categoryOptions.find((c) => c.value === category)?.icon ?? "pi-tag"
-    );
+    return EXPENSE_CATEGORIES.find((c) => c.value === category)?.icon ?? "pi-tag";
+  }
+
+  categoryClass(category: string): string {
+    return `cat cat-${(category || "other").toLowerCase()}`;
+  }
+
+  shareInfo(expense: Expense): ShareInfo {
+    const mine = expense.splits.find((s) => s.userId === this.currentUserId);
+    const myShare = mine ? Number(mine.amountOwed) : 0;
+    if (expense.paidByUserId === this.currentUserId) {
+      const lent = Number(expense.amount) - myShare;
+      return lent > 0.004
+        ? { label: "you lent", amount: lent, tone: "lent" }
+        : { label: "only you", amount: null, tone: "none" };
+    }
+    return myShare > 0
+      ? { label: "you borrowed", amount: myShare, tone: "borrowed" }
+      : { label: "not involved", amount: null, tone: "none" };
   }
 
   // Members
@@ -259,10 +280,6 @@ export class GroupDetailComponent implements OnInit {
     this.groupService.addMember(this.groupId, email).subscribe({
       next: (group) => {
         this.group = group;
-        this.memberOptions = (group.members || []).map((m: User) => ({
-          label: m.name,
-          value: m.id,
-        }));
         this.addingMember = false;
         this.showMemberDialog = false;
         this.messageService.add({
@@ -271,6 +288,7 @@ export class GroupDetailComponent implements OnInit {
           detail: `${email} joined the group`,
         });
         this.loadSettlements();
+        this.refreshActivity();
       },
       error: (error) => {
         this.addingMember = false;
@@ -284,57 +302,33 @@ export class GroupDetailComponent implements OnInit {
   }
 
   // Expenses
-  openExpenseDialog(): void {
-    this.expenseForm.reset({
-      description: "",
-      amount: null,
-      category: "Other",
-      paidBy: this.currentUserId || null,
+  openExpenseForm(expense: Expense | null = null): void {
+    this.editingExpense = expense;
+    this.showExpenseForm = true;
+  }
+
+  closeExpenseForm(): void {
+    this.showExpenseForm = false;
+    this.editingExpense = null;
+  }
+
+  onExpenseSaved(expense: Expense): void {
+    const edited = this.editingExpense !== null;
+    this.closeExpenseForm();
+    this.messageService.add({
+      severity: "success",
+      summary: edited ? "Expense updated" : "Expense added",
+      detail: `"${expense.description}" saved`,
     });
-    this.showExpenseDialog = true;
+    this.refreshAll();
   }
 
-  closeExpenseDialog(): void {
-    if (this.addingExpense) return;
-    this.showExpenseDialog = false;
-  }
-
-  addExpense(): void {
-    if (this.expenseForm.invalid || this.addingExpense) {
-      this.expenseForm.markAllAsTouched();
+  onExpenseClick(expense: Expense): void {
+    if (this.swipeMoved[expense.id]) {
+      delete this.swipeMoved[expense.id];
       return;
     }
-    this.addingExpense = true;
-    const v = this.expenseForm.value;
-    this.expenseService
-      .addExpense({
-        groupId: this.groupId,
-        description: v.description,
-        amount: v.amount,
-        category: v.category,
-        paidBy: v.paidBy,
-      })
-      .subscribe({
-        next: () => {
-          this.addingExpense = false;
-          this.showExpenseDialog = false;
-          this.messageService.add({
-            severity: "success",
-            summary: "Expense added",
-            detail: `"${v.description}" added`,
-          });
-          this.loadExpenses();
-          this.loadSettlements();
-        },
-        error: (error) => {
-          this.addingExpense = false;
-          this.messageService.add({
-            severity: "error",
-            summary: "Error",
-            detail: error?.error?.message || "Failed to add expense",
-          });
-        },
-      });
+    this.openExpenseForm(expense);
   }
 
   confirmDeleteExpense(expense: Expense): void {
@@ -356,8 +350,7 @@ export class GroupDetailComponent implements OnInit {
           summary: "Deleted",
           detail: "Expense removed",
         });
-        this.loadExpenses();
-        this.loadSettlements();
+        this.refreshAll();
       },
       error: (error) => {
         this.resetSwipe(expense.id);
@@ -374,8 +367,8 @@ export class GroupDetailComponent implements OnInit {
   onSwipeStart(event: TouchEvent, expenseId: number): void {
     const t = event.touches[0];
     this.swipeStart[expenseId] = { x: t.clientX, y: t.clientY };
-    this.swipeLocked[expenseId] = false;
     this.swipeAxis[expenseId] = null;
+    this.swipeMoved[expenseId] = false;
   }
 
   onSwipeMove(event: TouchEvent, expenseId: number): void {
@@ -394,8 +387,8 @@ export class GroupDetailComponent implements OnInit {
     if (this.swipeAxis[expenseId] !== "x") return;
 
     event.preventDefault();
-    const clamped = Math.max(-140, Math.min(0, dx));
-    this.swipeState[expenseId] = clamped;
+    this.swipeMoved[expenseId] = true;
+    this.swipeState[expenseId] = Math.max(-140, Math.min(0, dx));
   }
 
   onSwipeEnd(expense: Expense): void {
@@ -408,6 +401,9 @@ export class GroupDetailComponent implements OnInit {
     }
     delete this.swipeStart[expense.id];
     delete this.swipeAxis[expense.id];
+    if (this.swipeMoved[expense.id]) {
+      setTimeout(() => delete this.swipeMoved[expense.id], 400);
+    }
   }
 
   resetSwipe(id: number): void {
@@ -426,6 +422,10 @@ export class GroupDetailComponent implements OnInit {
 
   canSettle(s: Settlement): boolean {
     return s.fromId === this.currentUserId || s.toId === this.currentUserId;
+  }
+
+  mySettlementCount(): number {
+    return this.settlements.filter((s) => this.canSettle(s)).length;
   }
 
   settlementClass(s: Settlement): string {
@@ -463,6 +463,7 @@ export class GroupDetailComponent implements OnInit {
         setTimeout(() => {
           this.settledKey.set(null);
           this.loadSettlements();
+          this.refreshActivity();
           this.messageService.add({
             severity: "success",
             summary: "Settled",
@@ -481,6 +482,40 @@ export class GroupDetailComponent implements OnInit {
     });
   }
 
+  confirmSettleAll(): void {
+    const count = this.mySettlementCount();
+    this.confirmationService.confirm({
+      message: `Record ${count} payments that clear everything you owe and are owed in this group?`,
+      header: "Settle all your balances",
+      icon: "pi pi-check-circle",
+      accept: () => this.settleAll(),
+    });
+  }
+
+  settleAll(): void {
+    this.settlingAll = true;
+    this.settlementService.settleAll(this.groupId).subscribe({
+      next: ({ settled }) => {
+        this.settlingAll = false;
+        this.messageService.add({
+          severity: "success",
+          summary: "All settled",
+          detail: `${settled} balance${settled === 1 ? "" : "s"} cleared`,
+        });
+        this.loadSettlements();
+        this.refreshActivity();
+      },
+      error: (error) => {
+        this.settlingAll = false;
+        this.messageService.add({
+          severity: "error",
+          summary: "Error",
+          detail: error?.error?.message || "Failed to settle",
+        });
+      },
+    });
+  }
+
   isSettling(s: Settlement): boolean {
     return !!this.settling[this.settlementKey(s)];
   }
@@ -489,16 +524,23 @@ export class GroupDetailComponent implements OnInit {
     return this.settledKey() === this.settlementKey(s);
   }
 
-  categoryClass(category: string): string {
-    return `cat cat-${(category || "other").toLowerCase()}`;
-  }
-
   trackExpense(_: number, e: Expense): number {
     return e.id;
   }
 
-  trackSettlement(_: number, s: Settlement): string {
-    return this.settlementKey(s);
+  // Arrow function: ngFor calls trackBy without the component as `this`
+  trackSettlement = (_: number, s: Settlement): string => this.settlementKey(s);
+
+  private refreshActivity(): void {
+    if (this.activityLoaded) {
+      this.loadActivity();
+    }
+  }
+
+  private refreshAll(): void {
+    this.loadExpenses();
+    this.loadSettlements();
+    this.refreshActivity();
   }
 
   private launchConfetti(): void {

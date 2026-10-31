@@ -1,0 +1,164 @@
+<div class="sheet-backdrop" (click)="close()"></div>
+<div class="bottom-sheet expense-sheet" role="dialog" aria-labelledby="expenseFormTitle">
+  <div class="sheet-header">
+    <h2 id="expenseFormTitle">{{ isEdit ? "Edit expense" : "Add an expense" }}</h2>
+    <button type="button" class="icon-close" aria-label="Close" (click)="close()">
+      <i class="pi pi-times"></i>
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field" [class.filled]="!!form.controls.description.value">
+      <input
+        id="expenseDesc"
+        type="text"
+        formControlName="description"
+        placeholder=" "
+        maxlength="255"
+        autocomplete="off"
+      />
+      <label for="expenseDesc">Description</label>
+      <small
+        class="field-error"
+        *ngIf="form.controls.description.touched && form.controls.description.invalid"
+      >
+        Add a short description
+      </small>
+    </div>
+
+    <div class="field" [class.filled]="form.controls.amount.value !== null">
+      <input
+        id="expenseAmount"
+        type="number"
+        formControlName="amount"
+        placeholder=" "
+        min="0.01"
+        step="0.01"
+        inputmode="decimal"
+      />
+      <label for="expenseAmount">Amount (₹)</label>
+      <small
+        class="field-error"
+        *ngIf="form.controls.amount.touched && form.controls.amount.invalid"
+      >
+        Enter an amount above ₹0
+      </small>
+    </div>
+
+    <span class="stack-label">Category</span>
+    <div class="chip-row">
+      <button
+        type="button"
+        *ngFor="let c of categories"
+        class="chip-btn"
+        [class.selected]="form.controls.category.value === c.value"
+        (click)="form.controls.category.setValue(c.value)"
+      >
+        <i class="pi" [class]="c.icon"></i>
+        {{ c.label }}
+      </button>
+    </div>
+
+    <label for="expensePaidBy" class="stack-label">Paid by</label>
+    <select id="expensePaidBy" formControlName="paidBy" class="field-select">
+      <option [ngValue]="null" disabled>Select member</option>
+      <option *ngFor="let m of members" [ngValue]="m.userId">
+        {{ m.userId === currentUserId ? m.name + " (you)" : m.name }}
+      </option>
+    </select>
+
+    <div class="split-head">
+      <span class="stack-label">Split</span>
+      <div class="segmented" role="radiogroup" aria-label="Split type">
+        <button
+          type="button"
+          *ngFor="let t of splitTypes"
+          role="radio"
+          [attr.aria-checked]="splitType() === t.value"
+          [class.active]="splitType() === t.value"
+          (click)="setSplitType(t.value)"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+    </div>
+
+    <ul class="split-list">
+      <li
+        *ngFor="let row of rows(); trackBy: trackRow"
+        class="split-row"
+        [class.off]="splitType() === 'EQUAL' && !row.included"
+      >
+        <span class="split-avatar gradient-avatar">{{ row.name.charAt(0).toUpperCase() }}</span>
+        <span class="split-name">{{ row.name }}</span>
+        <span class="split-preview" *ngIf="rowPreview(row) as preview">
+          ₹{{ preview | number: "1.2-2" }}
+        </span>
+
+        <ng-container [ngSwitch]="splitType()">
+          <button
+            *ngSwitchCase="'EQUAL'"
+            type="button"
+            class="check"
+            [class.on]="row.included"
+            [attr.aria-pressed]="row.included"
+            [attr.aria-label]="(row.included ? 'Leave out ' : 'Include ') + row.name"
+            (click)="toggleIncluded(row.userId)"
+          >
+            <i class="pi pi-check"></i>
+          </button>
+
+          <span *ngSwitchCase="'PERCENTAGE'" class="split-input">
+            <input
+              type="number"
+              inputmode="decimal"
+              min="0"
+              max="100"
+              step="0.01"
+              placeholder="0"
+              [ngModel]="row.percent"
+              (ngModelChange)="setPercent(row.userId, $event)"
+              [ngModelOptions]="{ standalone: true }"
+              [attr.aria-label]="'Percentage for ' + row.name"
+            />
+            <span class="unit">%</span>
+          </span>
+
+          <span *ngSwitchCase="'EXACT'" class="split-input">
+            <span class="unit">₹</span>
+            <input
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.01"
+              placeholder="0"
+              [ngModel]="row.exact"
+              (ngModelChange)="setExact(row.userId, $event)"
+              [ngModelOptions]="{ standalone: true }"
+              [attr.aria-label]="'Amount for ' + row.name"
+            />
+          </span>
+        </ng-container>
+      </li>
+    </ul>
+
+    <p class="split-status" [class.ok]="status().ok" role="status">
+      <i class="pi" [class.pi-check-circle]="status().ok" [class.pi-info-circle]="!status().ok"></i>
+      {{ status().text }}
+    </p>
+
+    <p class="form-error" *ngIf="error()" role="alert">{{ error() }}</p>
+
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [class.loading]="saving()"
+        [disabled]="saving() || !status().ok"
+      >
+        <span class="label">{{ isEdit ? "Save changes" : "Add expense" }}</span>
+      </button>
+    </div>
+  </form>
+</div>

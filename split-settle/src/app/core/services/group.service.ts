@@ -3,6 +3,7 @@ import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
 import { Group } from "../models/group.model";
+import { Activity } from "../models/activity.model";
 
 @Injectable({
   providedIn: "root",
@@ -28,5 +29,9 @@ export class GroupService {
     return this.http.post<Group>(`${this.apiUrl}/${groupId}/members`, {
       email,
     });
+  }
+
+  getActivity(groupId: number): Observable<Activity[]> {
+    return this.http.get<Activity[]>(`${this.apiUrl}/${groupId}/activity`);
   }
 }

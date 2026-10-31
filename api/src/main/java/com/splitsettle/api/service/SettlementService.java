@@ -1,129 +1,150 @@
 package com.splitsettle.api.service;
 
 import com.splitsettle.api.dto.SettlementDTO;
-import com.splitsettle.api.entity.Expense;
+import com.splitsettle.api.entity.ActivityType;
 import com.splitsettle.api.entity.ExpenseSplit;
 import com.splitsettle.api.entity.Group;
 import com.splitsettle.api.entity.GroupMember;
+import com.splitsettle.api.entity.Payment;
 import com.splitsettle.api.entity.User;
 import com.splitsettle.api.exception.ResourceNotFoundException;
-import com.splitsettle.api.repository.ExpenseRepository;
 import com.splitsettle.api.repository.ExpenseSplitRepository;
 import com.splitsettle.api.repository.GroupMemberRepository;
 import com.splitsettle.api.repository.GroupRepository;
+import com.splitsettle.api.repository.PaymentRepository;
 import com.splitsettle.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class SettlementService {
-    private final ExpenseRepository expenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
-    private final GroupRepository groupRepository;
+    private final PaymentRepository paymentRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final GroupAccessService groupAccess;
+    private final ActivityService activityService;
 
-    public List<SettlementDTO> calculateSettlements(Long groupId) {
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
-
-        List<GroupMember> members = groupMemberRepository.findByGroup_Id(groupId);
-        Map<Long, BigDecimal> balances = new HashMap<>();
-        members.forEach(m -> balances.put(m.getUser().getId(), BigDecimal.ZERO));
-
-        // Find all unsettled splits in this group
-        List<ExpenseSplit> allSplits = expenseSplitRepository.findAll().stream()
-                .filter(s -> s.getExpense().getGroup().getId().equals(groupId) && !s.getIsSettled())
-                .collect(Collectors.toList());
-
-        for (ExpenseSplit split : allSplits) {
-            User debtor = split.getUser();
-            User creditor = split.getExpense().getPaidBy();
-
-            BigDecimal amount = split.getAmountOwed();
-
-            // Debtor balance decreases, Creditor balance increases
-            balances.put(debtor.getId(), balances.get(debtor.getId()).subtract(amount));
-            balances.put(creditor.getId(), balances.get(creditor.getId()).add(amount));
-        }
-
-        // Greedy Algorithm
-        List<UserBalance> userBalances = new ArrayList<>();
-        balances.forEach((id, balance) -> {
-            User user = userRepository.findById(id).orElseThrow();
-            userBalances.add(new UserBalance(user, balance));
-        });
-
-        List<SettlementDTO> settlements = new ArrayList<>();
-
-        while (true) {
-            // Sort balances to find largest debtor and largest creditor
-            userBalances.sort(Comparator.comparing(UserBalance::getBalance));
-
-            UserBalance debtor = userBalances.get(0);
-            UserBalance creditor = userBalances.get(userBalances.size() - 1);
-
-            if (debtor.getBalance().compareTo(BigDecimal.ZERO) >= 0 ||
-                creditor.getBalance().compareTo(BigDecimal.ZERO) <= 0) {
-                break;
-            }
-
-            BigDecimal amountToSettle = debtor.getBalance().abs().min(creditor.getBalance());
-
-            settlements.add(SettlementDTO.builder()
-                    .from(debtor.getUser().getName())
-                    .fromId(debtor.getUser().getId())
-                    .to(creditor.getUser().getName())
-                    .toId(creditor.getUser().getId())
-                    .amount(amountToSettle)
-                    .build());
-
-            debtor.setBalance(debtor.getBalance().add(amountToSettle));
-            creditor.setBalance(creditor.getBalance().subtract(amountToSettle));
-        }
-
-        return settlements;
+    @Transactional(readOnly = true)
+    public List<SettlementDTO> calculateSettlements(Long groupId, Long requesterId) {
+        groupAccess.requireMember(groupId, requesterId);
+        return computeSettlements(groupId);
     }
 
     @Transactional
-    public void settleUp(Long groupId, Long fromUserId, Long toUserId) {
-        List<ExpenseSplit> allSplits = expenseSplitRepository.findAll().stream()
-                .filter(s -> s.getExpense().getGroup().getId().equals(groupId) &&
-                             s.getUser().getId().equals(fromUserId) &&
-                             s.getExpense().getPaidBy().getId().equals(toUserId) &&
-                             !s.getIsSettled())
-                .collect(Collectors.toList());
-
-        if (allSplits.isEmpty()) {
-            throw new ResourceNotFoundException("No unsettled debts found from user " + fromUserId + " to user " + toUserId);
+    public void settleUp(Long groupId, Long fromUserId, Long toUserId, Long requesterId) {
+        groupAccess.requireMember(groupId, requesterId);
+        if (!requesterId.equals(fromUserId) && !requesterId.equals(toUserId)) {
+            throw new IllegalArgumentException("Only the payer or the receiver can settle this balance");
         }
 
-        allSplits.forEach(s -> {
-            s.setIsSettled(true);
-            s.setSettledAt(LocalDateTime.now());
-        });
+        SettlementDTO due = computeSettlements(groupId).stream()
+                .filter(s -> s.getFromId().equals(fromUserId) && s.getToId().equals(toUserId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Nothing to settle between these members"));
 
-        expenseSplitRepository.saveAll(allSplits);
+        recordPayment(groupId, due);
     }
 
-    private static class UserBalance {
-        private final User user;
-        private BigDecimal balance;
+    /** Records every suggested transfer the requester is part of; other members' balances are untouched. */
+    @Transactional
+    public int settleAllForUser(Long groupId, Long requesterId) {
+        groupAccess.requireMember(groupId, requesterId);
+        List<SettlementDTO> mine = computeSettlements(groupId).stream()
+                .filter(s -> s.getFromId().equals(requesterId) || s.getToId().equals(requesterId))
+                .toList();
+        if (mine.isEmpty()) {
+            throw new ResourceNotFoundException("You have no balances to settle in this group");
+        }
+        mine.forEach(due -> recordPayment(groupId, due));
+        return mine.size();
+    }
 
-        public UserBalance(User user, BigDecimal balance) {
-            this.user = user;
-            this.balance = balance;
+    private void recordPayment(Long groupId, SettlementDTO due) {
+        Group group = groupRepository.getReferenceById(groupId);
+        User from = userRepository.getReferenceById(due.getFromId());
+        User to = userRepository.getReferenceById(due.getToId());
+        paymentRepository.save(Payment.builder()
+                .group(group)
+                .fromUser(from)
+                .toUser(to)
+                .amount(due.getAmount())
+                .build());
+        activityService.record(group, from, ActivityType.PAYMENT_RECORDED, to, null, due.getAmount());
+    }
+
+    private List<SettlementDTO> computeSettlements(Long groupId) {
+        Map<Long, User> users = new HashMap<>();
+        Map<Long, BigDecimal> balances = new HashMap<>();
+
+        for (GroupMember member : groupMemberRepository.findByGroup_Id(groupId)) {
+            users.put(member.getUser().getId(), member.getUser());
+            balances.put(member.getUser().getId(), BigDecimal.ZERO);
         }
 
-        public User getUser() { return user; }
-        public BigDecimal getBalance() { return balance; }
-        public void setBalance(BigDecimal balance) { this.balance = balance; }
+        for (ExpenseSplit split : expenseSplitRepository.findByExpense_Group_Id(groupId)) {
+            // Flag only set by the old settle flow, before payments were recorded
+            if (Boolean.TRUE.equals(split.getIsSettled())) {
+                continue;
+            }
+            balances.merge(split.getUser().getId(), split.getAmountOwed().negate(), BigDecimal::add);
+            balances.merge(split.getExpense().getPaidBy().getId(), split.getAmountOwed(), BigDecimal::add);
+        }
+
+        for (Payment payment : paymentRepository.findByGroup_Id(groupId)) {
+            balances.merge(payment.getFromUser().getId(), payment.getAmount(), BigDecimal::add);
+            balances.merge(payment.getToUser().getId(), payment.getAmount().negate(), BigDecimal::add);
+        }
+
+        return simplify(balances).stream()
+                .map(t -> SettlementDTO.builder()
+                        .fromId(t.fromId())
+                        .from(users.get(t.fromId()).getName())
+                        .toId(t.toId())
+                        .to(users.get(t.toId()).getName())
+                        .amount(t.amount())
+                        .build())
+                .toList();
+    }
+
+    /** Greedy: repeatedly pays the largest debtor's debt to the largest creditor. */
+    static List<Transfer> simplify(Map<Long, BigDecimal> balances) {
+        List<Account> accounts = new ArrayList<>();
+        balances.forEach((userId, balance) -> accounts.add(new Account(userId, balance)));
+        Comparator<Account> byBalance = Comparator.comparing((Account a) -> a.balance).thenComparing(a -> a.userId);
+
+        List<Transfer> transfers = new ArrayList<>();
+        while (accounts.size() > 1) {
+            accounts.sort(byBalance);
+            Account debtor = accounts.get(0);
+            Account creditor = accounts.get(accounts.size() - 1);
+            if (debtor.balance.signum() >= 0 || creditor.balance.signum() <= 0) {
+                break;
+            }
+
+            BigDecimal amount = debtor.balance.negate().min(creditor.balance);
+            transfers.add(new Transfer(debtor.userId, creditor.userId, amount));
+            debtor.balance = debtor.balance.add(amount);
+            creditor.balance = creditor.balance.subtract(amount);
+        }
+        return transfers;
+    }
+
+    record Transfer(Long fromId, Long toId, BigDecimal amount) {}
+
+    private static final class Account {
+        private final Long userId;
+        private BigDecimal balance;
+
+        private Account(Long userId, BigDecimal balance) {
+            this.userId = userId;
+            this.balance = balance;
+        }
     }
 }
