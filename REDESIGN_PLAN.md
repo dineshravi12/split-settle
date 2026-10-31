@@ -3,8 +3,8 @@
 ## App Overview (Current State)
 
 - **What it is**: A Splitwise-style group expense tracker
-- **Frontend**: Angular 19 + PrimeNG 19 (standalone components), hosted on **Netlify**
-- **Backend**: Spring Boot + JWT + MySQL, hosted on **Railway**
+- **Frontend**: Angular 19 + PrimeNG 19 (standalone components), runs locally (deployment target TBD)
+- **Backend**: Spring Boot + JWT + MySQL, runs locally (deployment target TBD)
 - **Auth**: JWT stored in `localStorage`, BCrypt password hashing
 - **Current gaps**: Desktop-first, no animations, no dark mode, no bottom nav, no skeleton loaders, equal splits only
 
