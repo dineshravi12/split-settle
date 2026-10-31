@@ -389,7 +389,19 @@
 .balances-toolbar {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
   margin-bottom: 0.85rem;
+}
+
+.remind-btn {
+  color: #25d366;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.remind-btn:hover {
+  background: rgba(37, 211, 102, 0.12);
+  color: #25d366;
 }
 
 /* Settlement */

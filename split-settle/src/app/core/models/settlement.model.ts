@@ -4,4 +4,6 @@ export interface Settlement {
   to: string;
   toId: number;
   amount: number;
+  /** Only sent to the person who owes this amount. */
+  toUpiId?: string | null;
 }

@@ -1,5 +1,6 @@
-import { Component, OnInit, inject } from "@angular/core";
+import { Component, OnInit, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 import { forkJoin, of } from "rxjs";
 import { catchError, switchMap, map } from "rxjs/operators";
@@ -7,6 +8,8 @@ import { AuthService } from "../../core/services/auth.service";
 import { ThemeService } from "../../core/services/theme.service";
 import { GroupService } from "../../core/services/group.service";
 import { SettlementService } from "../../core/services/settlement.service";
+import { UserService } from "../../core/services/user.service";
+import { UPI_ID_PATTERN } from "../../core/utils/payment-links";
 import { Group } from "../../core/models/group.model";
 import { Settlement } from "../../core/models/settlement.model";
 import { SkeletonLoaderComponent } from "../../shared/components/skeleton-loader/skeleton-loader.component";
@@ -14,7 +17,7 @@ import { SkeletonLoaderComponent } from "../../shared/components/skeleton-loader
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [CommonModule, SkeletonLoaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, SkeletonLoaderComponent],
   templateUrl: "./profile.component.html",
   styleUrls: ["./profile.component.scss"],
 })
@@ -23,6 +26,7 @@ export class ProfileComponent implements OnInit {
   readonly themeService = inject(ThemeService);
   private groupService = inject(GroupService);
   private settlementService = inject(SettlementService);
+  private userService = inject(UserService);
   private router = inject(Router);
 
   loading = true;
@@ -34,14 +38,47 @@ export class ProfileComponent implements OnInit {
   totalOwedToYou = 0;
   netBalance = 0;
 
+  readonly upiControl = new FormControl("", {
+    nonNullable: true,
+    validators: [Validators.maxLength(100), Validators.pattern(UPI_ID_PATTERN)],
+  });
+  readonly upiForm = new FormGroup({ upiId: this.upiControl });
+  readonly savingUpi = signal(false);
+  readonly upiStatus = signal<"saved" | "error" | null>(null);
+
   ngOnInit(): void {
     this.userName = this.authService.getCurrentUserName();
     this.userId = this.authService.getCurrentUserId();
-    this.memberSince = new Date().toLocaleDateString(undefined, {
-      month: "long",
-      year: "numeric",
-    });
     this.loadStats();
+    this.userService.getMe().subscribe((me) => {
+      this.memberSince = new Date(me.memberSince).toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric",
+      });
+      this.upiControl.reset(me.upiId ?? "");
+    });
+  }
+
+  saveUpi(): void {
+    const value = this.upiControl.value.trim();
+    this.upiControl.setValue(value);
+    if (this.upiControl.invalid || this.savingUpi()) {
+      this.upiControl.markAsTouched();
+      return;
+    }
+    this.savingUpi.set(true);
+    this.upiStatus.set(null);
+    this.userService.updateUpiId(value || null).subscribe({
+      next: (me) => {
+        this.savingUpi.set(false);
+        this.upiControl.reset(me.upiId ?? "");
+        this.upiStatus.set("saved");
+      },
+      error: () => {
+        this.savingUpi.set(false);
+        this.upiStatus.set("error");
+      },
+    });
   }
 
   get initial(): string {

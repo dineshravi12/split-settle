@@ -5,7 +5,7 @@
     <div class="profile-avatar gradient-avatar">{{ initial }}</div>
     <div class="profile-heading">
       <h1>{{ userName || 'Guest' }}</h1>
-      <p class="muted">Member since {{ memberSince }}</p>
+      <p class="muted" *ngIf="memberSince">Member since {{ memberSince }}</p>
     </div>
   </header>
 
@@ -53,6 +53,44 @@
         </div>
       </div>
     </ng-template>
+  </section>
+
+  <section class="section">
+    <h2 class="section-heading">Payments</h2>
+    <form class="upi-card glass-card" [formGroup]="upiForm" (ngSubmit)="saveUpi()" novalidate>
+      <span class="pref-icon icon-primary"><i class="pi pi-qrcode"></i></span>
+      <div class="upi-main">
+        <label for="upiId" class="pref-title">UPI ID</label>
+        <p class="pref-sub muted">People who owe you get a QR code to pay you instantly.</p>
+        <div class="upi-row">
+          <input
+            id="upiId"
+            type="text"
+            formControlName="upiId"
+            placeholder="yourname@okaxis"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            (input)="upiStatus.set(null)"
+          />
+          <button
+            type="submit"
+            class="btn btn-primary small-btn"
+            [class.loading]="savingUpi()"
+            [disabled]="savingUpi() || !upiControl.dirty"
+          >
+            <span class="label">Save</span>
+          </button>
+        </div>
+        <small class="field-error" *ngIf="upiControl.touched && upiControl.invalid">
+          Enter a valid UPI ID, like name&#64;okaxis
+        </small>
+        <small class="upi-saved" *ngIf="upiStatus() === 'saved'">
+          <i class="pi pi-check-circle"></i> Saved
+        </small>
+        <small class="field-error" *ngIf="upiStatus() === 'error'">Couldn't save. Try again.</small>
+      </div>
+    </form>
   </section>
 
   <section class="section">

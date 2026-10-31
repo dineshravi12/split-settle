@@ -13,4 +13,5 @@ public class SettlementDTO {
     private String to;
     private Long toId;
     private BigDecimal amount;
+    private String toUpiId;
 }

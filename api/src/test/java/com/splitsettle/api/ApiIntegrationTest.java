@@ -196,6 +196,28 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void upiIdIsOnlySharedWithWhoeverOwesTheMoney() throws Exception {
+        Session hari = register("Hari", "hari@example.com");
+        Session isha = register("Isha", "isha@example.com");
+        long groupId = createGroup(hari, "Cab");
+        addMember(hari, groupId, "isha@example.com");
+        addExpense(hari, groupId, "Airport cab", "500.00", hari.userId());
+
+        perform(hari, put("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("{\"upiId\":\"hari@okaxis\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.upiId").value("hari@okaxis"));
+        perform(hari, put("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("{\"upiId\":\"hari@okaxis&am=1\"}"))
+                .andExpect(status().isBadRequest());
+        perform(hari, get("/api/users/me")).andExpect(jsonPath("$.upiId").value("hari@okaxis"));
+
+        perform(isha, get("/api/settlements/{id}", groupId))
+                .andExpect(jsonPath("$[0].toId").value((int) hari.userId()))
+                .andExpect(jsonPath("$[0].toUpiId").value("hari@okaxis"));
+        perform(hari, get("/api/settlements/{id}", groupId))
+                .andExpect(jsonPath("$[0].toUpiId").doesNotExist());
+    }
+
     private static String share(long userId, String value) {
         return String.format("{\"userId\":%d,\"value\":%s}", userId, value);
     }

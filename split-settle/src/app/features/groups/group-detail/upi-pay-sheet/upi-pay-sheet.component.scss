@@ -1,0 +1,88 @@
+.pay-amount {
+  margin: 0.4rem 0 0;
+  text-align: center;
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-for {
+  margin: 0.1rem 0 1.1rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* White frame in both themes: scanners need dark-on-light contrast */
+.qr-frame {
+  width: min(232px, 68vw);
+  margin: 0 auto;
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.qr-hint {
+  margin: 0.75rem 0 0.6rem;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.upi-id {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  margin: 0 auto 0.85rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  transition: background var(--duration) var(--ease);
+}
+
+.upi-id:hover {
+  background: var(--primary-light);
+}
+
+.upi-id i {
+  color: var(--primary);
+}
+
+.open-app {
+  width: 100%;
+}
+
+.no-upi {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--primary-light);
+  text-align: center;
+}
+
+.no-upi > i {
+  font-size: 1.4rem;
+  color: var(--primary);
+}
+
+.no-upi p {
+  margin: 0.5rem 0 0.85rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}

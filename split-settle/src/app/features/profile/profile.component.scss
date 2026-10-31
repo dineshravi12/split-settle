@@ -335,6 +335,56 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.upi-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+}
+
+.upi-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.upi-main .pref-title {
+  display: block;
+}
+
+.upi-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.upi-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.upi-row input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.upi-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  color: var(--success);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .logout-btn:hover:not(:disabled) {
   background: var(--danger-light);
   color: var(--danger);

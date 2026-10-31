@@ -189,8 +189,17 @@
           [rows]="3"
         ></app-skeleton-loader>
 
-        <div class="balances-toolbar" *ngIf="!loadingSettlements && mySettlementCount() > 1">
+        <div class="balances-toolbar" *ngIf="!loadingSettlements && settlements.length > 0">
+          <a
+            class="btn btn-ghost small-btn"
+            [href]="summaryLink()"
+            target="_blank"
+            rel="noopener"
+          >
+            <i class="pi pi-whatsapp"></i> Share
+          </a>
           <button
+            *ngIf="mySettlementCount() > 1"
             type="button"
             class="btn btn-primary small-btn"
             [class.loading]="settlingAll"
@@ -234,16 +243,38 @@
                 <i class="pi pi-check"></i>
               </div>
               <div class="settlement-text">{{ settlementText(s) }}</div>
-              <button
-                *ngIf="canSettle(s) && !isSettled(s)"
-                type="button"
-                class="btn btn-primary small-btn settle-btn"
-                [class.loading]="isSettling(s)"
-                [disabled]="isSettling(s)"
-                (click)="confirmSettle(s)"
-              >
-                <span class="label"><i class="pi pi-check"></i> Settle</span>
-              </button>
+              <ng-container *ngIf="!isSettled(s)">
+                <button
+                  *ngIf="s.fromId === currentUserId"
+                  type="button"
+                  class="btn btn-primary small-btn settle-btn"
+                  [class.loading]="isSettling(s)"
+                  [disabled]="isSettling(s)"
+                  (click)="openPaySheet(s)"
+                >
+                  <span class="label"><i class="pi pi-wallet"></i> Pay</span>
+                </button>
+                <ng-container *ngIf="s.toId === currentUserId">
+                  <a
+                    class="icon-inline remind-btn"
+                    [href]="reminderLink(s)"
+                    target="_blank"
+                    rel="noopener"
+                    [attr.aria-label]="'Remind ' + s.from + ' on WhatsApp'"
+                  >
+                    <i class="pi pi-whatsapp"></i>
+                  </a>
+                  <button
+                    type="button"
+                    class="btn btn-primary small-btn settle-btn"
+                    [class.loading]="isSettling(s)"
+                    [disabled]="isSettling(s)"
+                    (click)="confirmSettle(s)"
+                  >
+                    <span class="label"><i class="pi pi-check"></i> Settle</span>
+                  </button>
+                </ng-container>
+              </ng-container>
             </div>
           </div>
         </ng-container>
@@ -335,6 +366,15 @@
   (saved)="onExpenseSaved($event)"
   (closed)="closeExpenseForm()"
 ></app-expense-form>
+
+<!-- UPI pay sheet -->
+<app-upi-pay-sheet
+  *ngIf="payingSettlement && group"
+  [settlement]="payingSettlement"
+  [groupName]="group.name"
+  (markPaid)="onPaid()"
+  (closed)="closePaySheet()"
+></app-upi-pay-sheet>
 
 <!-- Confetti overlay -->
 <div class="confetti-wrap" *ngIf="confetti() as pieces" aria-hidden="true">

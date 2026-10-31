@@ -1,0 +1,62 @@
+<div class="sheet-backdrop" (click)="close()"></div>
+<div class="bottom-sheet pay-sheet" role="dialog" aria-labelledby="payTitle">
+  <div class="sheet-header">
+    <h2 id="payTitle">Pay {{ settlement.to }}</h2>
+    <button type="button" class="icon-close" aria-label="Close" (click)="close()">
+      <i class="pi pi-times"></i>
+    </button>
+  </div>
+
+  <p class="pay-amount">₹{{ settlement.amount | number: "1.2-2" }}</p>
+  <p class="pay-for muted">for {{ groupName }}</p>
+
+  <ng-container *ngIf="upiLink; else noUpi">
+    <div class="qr-frame">
+      <svg
+        class="qr"
+        [attr.viewBox]="'0 0 ' + qrSize + ' ' + qrSize"
+        shape-rendering="crispEdges"
+        role="img"
+        [attr.aria-label]="'UPI QR code to pay ' + settlement.to"
+      >
+        <rect [attr.width]="qrSize" [attr.height]="qrSize" fill="#ffffff" />
+        <path [attr.d]="qrPath" fill="#111111" />
+      </svg>
+    </div>
+    <p class="qr-hint muted">Scan with GPay, PhonePe, Paytm or any UPI app</p>
+
+    <button
+      type="button"
+      class="upi-id"
+      [attr.aria-label]="copied() ? 'UPI ID copied' : 'Copy UPI ID ' + settlement.toUpiId"
+      (click)="copyUpiId()"
+    >
+      <span>{{ settlement.toUpiId }}</span>
+      <i class="pi" [class.pi-copy]="!copied()" [class.pi-check]="copied()"></i>
+    </button>
+
+    <a class="btn btn-ghost open-app mobile-only" [href]="upiLink">
+      <i class="pi pi-mobile"></i> Open UPI app
+    </a>
+  </ng-container>
+
+  <ng-template #noUpi>
+    <div class="no-upi">
+      <i class="pi pi-info-circle"></i>
+      <p>
+        {{ settlement.to }} hasn't added a UPI ID yet. Pay them another way, or ask them
+        to add one.
+      </p>
+      <a class="btn btn-ghost" [href]="askLink" target="_blank" rel="noopener">
+        <i class="pi pi-whatsapp"></i> Ask on WhatsApp
+      </a>
+    </div>
+  </ng-template>
+
+  <div class="sheet-actions">
+    <button type="button" class="btn btn-ghost" (click)="close()">Later</button>
+    <button type="button" class="btn btn-primary" (click)="markPaid.emit()">
+      <i class="pi pi-check"></i> I've paid
+    </button>
+  </div>
+</div>

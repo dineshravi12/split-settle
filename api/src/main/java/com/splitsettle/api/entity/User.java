@@ -29,6 +29,9 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "upi_id", length = 100)
+    private String upiId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

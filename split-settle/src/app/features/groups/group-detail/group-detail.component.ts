@@ -22,6 +22,8 @@ import { GroupService } from "../../../core/services/group.service";
 import { ExpenseService } from "../../../core/services/expense.service";
 import { SettlementService } from "../../../core/services/settlement.service";
 import { AuthService } from "../../../core/services/auth.service";
+import { UserService } from "../../../core/services/user.service";
+import { whatsAppShareLink } from "../../../core/utils/payment-links";
 import { Group } from "../../../core/models/group.model";
 import { EXPENSE_CATEGORIES, Expense } from "../../../core/models/expense.model";
 import { Settlement } from "../../../core/models/settlement.model";
@@ -30,6 +32,7 @@ import { SkeletonLoaderComponent } from "../../../shared/components/skeleton-loa
 import { FabComponent } from "../../../shared/components/fab/fab.component";
 import { ExpenseFormComponent } from "./expense-form/expense-form.component";
 import { ActivityFeedComponent } from "./activity-feed/activity-feed.component";
+import { UpiPaySheetComponent } from "./upi-pay-sheet/upi-pay-sheet.component";
 
 type TabKey = "expenses" | "balances" | "activity";
 
@@ -58,6 +61,7 @@ interface ShareInfo {
     FabComponent,
     ExpenseFormComponent,
     ActivityFeedComponent,
+    UpiPaySheetComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: "./group-detail.component.html",
@@ -90,6 +94,7 @@ export class GroupDetailComponent implements OnInit {
   private expenseService = inject(ExpenseService);
   private settlementService = inject(SettlementService);
   private authService = inject(AuthService);
+  private userService = inject(UserService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
 
@@ -125,6 +130,8 @@ export class GroupDetailComponent implements OnInit {
   settling: { [key: string]: boolean } = {};
   settlingAll = false;
   settledKey = signal<string | null>(null);
+  payingSettlement: Settlement | null = null;
+  private myUpiId: string | null = null;
 
   swipeState: { [id: number]: number } = {};
   private swipeStart: { [id: number]: { x: number; y: number } } = {};
@@ -153,6 +160,10 @@ export class GroupDetailComponent implements OnInit {
     this.loadGroup();
     this.loadExpenses();
     this.loadSettlements();
+    this.userService.getMe().subscribe({
+      next: (me) => (this.myUpiId = me.upiId),
+      error: () => (this.myUpiId = null),
+    });
   }
 
   loadGroup(): void {
@@ -518,6 +529,40 @@ export class GroupDetailComponent implements OnInit {
 
   isSettling(s: Settlement): boolean {
     return !!this.settling[this.settlementKey(s)];
+  }
+
+  // Payments & sharing
+  openPaySheet(s: Settlement): void {
+    this.payingSettlement = s;
+  }
+
+  closePaySheet(): void {
+    this.payingSettlement = null;
+  }
+
+  onPaid(): void {
+    const settlement = this.payingSettlement;
+    this.payingSettlement = null;
+    if (settlement) {
+      this.settleUp(settlement);
+    }
+  }
+
+  reminderLink(s: Settlement): string {
+    const upi = this.myUpiId ? ` You can pay me on UPI at ${this.myUpiId}.` : "";
+    return whatsAppShareLink(
+      `Hi ${s.from}, a quick reminder from Split & Settle: you owe me ₹${s.amount.toFixed(2)} ` +
+        `for "${this.group?.name}".${upi}`,
+    );
+  }
+
+  summaryLink(): string {
+    const lines = this.settlements.map(
+      (s) => `• ${s.from} pays ${s.to} ₹${s.amount.toFixed(2)}`,
+    );
+    return whatsAppShareLink(
+      [`💸 ${this.group?.name}: who owes whom`, ...lines, "", "Settle up on Split & Settle"].join("\n"),
+    );
   }
 
   isSettled(s: Settlement): boolean {

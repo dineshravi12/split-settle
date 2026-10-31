@@ -34,7 +34,12 @@ public class SettlementService {
     @Transactional(readOnly = true)
     public List<SettlementDTO> calculateSettlements(Long groupId, Long requesterId) {
         groupAccess.requireMember(groupId, requesterId);
-        return computeSettlements(groupId);
+        List<SettlementDTO> settlements = computeSettlements(groupId);
+        // Only the person paying needs the receiver's UPI ID
+        settlements.stream()
+                .filter(s -> !s.getFromId().equals(requesterId))
+                .forEach(s -> s.setToUpiId(null));
+        return settlements;
     }
 
     @Transactional
@@ -108,6 +113,7 @@ public class SettlementService {
                         .from(users.get(t.fromId()).getName())
                         .toId(t.toId())
                         .to(users.get(t.toId()).getName())
+                        .toUpiId(users.get(t.toId()).getUpiId())
                         .amount(t.amount())
                         .build())
                 .toList();
