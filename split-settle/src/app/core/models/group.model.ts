@@ -8,5 +8,6 @@ export interface Group {
   id: number;
   name: string;
   createdBy: number;
+  budget: number | null;
   members: GroupMember[];
 }

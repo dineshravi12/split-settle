@@ -1,0 +1,123 @@
+@if (expenses().length === 0) {
+  <div class="empty-state glass-panel">
+    <div class="icon"><i class="pi pi-chart-pie"></i></div>
+    <h3>No insights yet</h3>
+    <p>Add a few expenses to see where the money goes.</p>
+    @if (!hasBudget()) {
+      <button type="button" class="btn btn-ghost small-btn" (click)="setBudget.emit()">
+        <i class="pi pi-bullseye"></i> Set a budget
+      </button>
+    }
+  </div>
+} @else {
+  <div class="stats">
+    <div class="stat glass-card">
+      <span class="stat-label">Total spent</span>
+      <span class="stat-value">₹{{ total() | number: "1.0-0" }}</span>
+      <span class="stat-sub">{{ expenses().length }} {{ expenses().length === 1 ? "expense" : "expenses" }}</span>
+    </div>
+    <div class="stat glass-card">
+      <span class="stat-label">Your share</span>
+      <span class="stat-value">₹{{ myShare() | number: "1.0-0" }}</span>
+      <span class="stat-sub">{{ mySharePercent() | number: "1.0-0" }}% of the total</span>
+    </div>
+    <div class="stat glass-card">
+      <span class="stat-label">You paid</span>
+      <span class="stat-value">₹{{ myPaid() | number: "1.0-0" }}</span>
+      <span class="stat-sub">for the group</span>
+    </div>
+    <div class="stat glass-card">
+      <span class="stat-label">Per person</span>
+      <span class="stat-value">₹{{ perPerson() | number: "1.0-0" }}</span>
+      <span class="stat-sub">across {{ members().length }} members</span>
+    </div>
+  </div>
+
+  @if (!hasBudget()) {
+    <button type="button" class="budget-cta glass-card" (click)="setBudget.emit()">
+      <span class="cta-icon"><i class="pi pi-bullseye"></i></span>
+      <span class="cta-text">
+        <strong>Set a budget</strong>
+        <span class="muted">Track spending against a target for this group.</span>
+      </span>
+      <i class="pi pi-chevron-right muted"></i>
+    </button>
+  }
+
+  <section class="card glass-card">
+    <h3 class="card-title">By category</h3>
+    <div class="donut-wrap">
+      <svg class="donut" viewBox="0 0 42 42" role="img" [attr.aria-label]="donutLabel()">
+        <circle class="donut-track" cx="21" cy="21" r="15.9155" />
+        @for (c of categories(); track c.key) {
+          <circle
+            class="donut-slice"
+            cx="21"
+            cy="21"
+            r="15.9155"
+            [attr.stroke]="c.color"
+            [attr.stroke-dasharray]="c.dash"
+            [attr.stroke-dashoffset]="c.offset"
+          />
+        }
+        <text x="21" y="21" class="donut-total">₹{{ totalCompact() }}</text>
+        <text x="21" y="26" class="donut-caption">total</text>
+      </svg>
+      <ul class="legend">
+        @for (c of categories(); track c.key) {
+          <li>
+            <span class="swatch" [style.background]="c.color"></span>
+            <span class="legend-label">{{ c.label }}</span>
+            <span class="legend-value">₹{{ c.amount | number: "1.0-0" }}</span>
+            <span class="legend-pct">{{ c.percent | number: "1.0-0" }}%</span>
+          </li>
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="card glass-card">
+    <div class="card-head">
+      <h3 class="card-title">{{ timeline().caption }}</h3>
+      @if (timeline().peak; as peak) {
+        <span class="card-note">Peak: {{ peak.name }}</span>
+      }
+    </div>
+    <div class="bars" role="img" [attr.aria-label]="timeline().summary">
+      @for (b of timeline().buckets; track b.key) {
+        <div class="bar-col" [title]="b.name + ': ₹' + (b.amount | number: '1.0-0')">
+          <div class="bar-slot">
+            <span class="bar" [class.peak]="b.key === timeline().peak?.key" [style.height.%]="b.height"></span>
+          </div>
+          <span class="bar-label">{{ b.showLabel ? b.label : "" }}</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="card glass-card">
+    <div class="card-head">
+      <h3 class="card-title">Paid vs share</h3>
+      <span class="card-note key">
+        <span class="dot paid"></span> Paid <span class="dot share"></span> Share
+      </span>
+    </div>
+    <ul class="payers">
+      @for (p of payers(); track p.userId) {
+        <li class="payer">
+          <div class="payer-top">
+            <span class="payer-name">{{ p.name }}</span>
+            <span class="payer-figures">
+              ₹{{ p.paid | number: "1.0-0" }}
+              <span class="muted">/ ₹{{ p.share | number: "1.0-0" }}</span>
+            </span>
+          </div>
+          <div class="payer-bars" aria-hidden="true">
+            <span class="pbar paid" [style.width.%]="p.paidWidth"></span>
+            <span class="pbar share" [style.width.%]="p.shareWidth"></span>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}

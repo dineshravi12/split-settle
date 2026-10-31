@@ -34,4 +34,9 @@ export class GroupService {
   getActivity(groupId: number): Observable<Activity[]> {
     return this.http.get<Activity[]>(`${this.apiUrl}/${groupId}/activity`);
   }
+
+  /** Pass null to remove the budget. */
+  setBudget(groupId: number, budget: number | null): Observable<Group> {
+    return this.http.put<Group>(`${this.apiUrl}/${groupId}/budget`, { budget });
+  }
 }

@@ -4,7 +4,8 @@ export type ActivityType =
   | "EXPENSE_ADDED"
   | "EXPENSE_UPDATED"
   | "EXPENSE_DELETED"
-  | "PAYMENT_RECORDED";
+  | "PAYMENT_RECORDED"
+  | "BUDGET_UPDATED";
 
 export interface Activity {
   id: number;

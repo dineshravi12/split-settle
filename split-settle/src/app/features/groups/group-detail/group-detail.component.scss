@@ -152,9 +152,22 @@
 
 @media (max-width: 480px) {
   .tab {
-    gap: 0.3rem;
-    padding: 0.7rem 0.35rem;
-    font-size: 0.82rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.55rem 0.2rem;
+    font-size: 0.72rem;
+  }
+
+  .tab .pi {
+    font-size: 1rem;
+  }
+
+  .tab .tab-count {
+    position: absolute;
+    top: 0.25rem;
+    left: calc(50% + 0.45rem);
+    font-size: 0.6rem;
+    padding: 0 0.32rem;
   }
 }
 
@@ -177,7 +190,7 @@
   top: 0.35rem;
   bottom: 0.35rem;
   left: 0.35rem;
-  width: calc((100% - 0.7rem) / 3);
+  width: calc((100% - 0.7rem) / var(--tab-count, 3));
   background: var(--primary-gradient);
   border-radius: calc(var(--radius-md) - 0.15rem);
   box-shadow: var(--shadow-sm);

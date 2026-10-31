@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,6 +27,10 @@ public class Group {
 
     @Column(name = "created_by", nullable = false)
     private Long createdBy;
+
+    /** Optional spending target for the whole group (e.g. a trip budget). */
+    @Column(precision = 10, scale = 2)
+    private BigDecimal budget;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

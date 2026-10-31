@@ -218,6 +218,36 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$[0].toUpiId").doesNotExist());
     }
 
+    @Test
+    void groupBudgetCanBeSetChangedAndClearedByMembersOnly() throws Exception {
+        Session jai = register("Jai", "jai@example.com");
+        Session outsider = register("Kabir", "kabir@example.com");
+        long groupId = createGroup(jai, "Manali");
+
+        putJson(jai, "/api/groups/" + groupId + "/budget", "{\"budget\":15000}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budget").value(15000.0));
+        putJson(jai, "/api/groups/" + groupId + "/budget", "{\"budget\":15000.00}").andExpect(status().isOk());
+        putJson(jai, "/api/groups/" + groupId + "/budget", "{\"budget\":0}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Budget must be greater than zero"));
+        putJson(jai, "/api/groups/" + groupId + "/budget", "{\"budget\":10.555}").andExpect(status().isBadRequest());
+        putJson(outsider, "/api/groups/" + groupId + "/budget", "{\"budget\":1}").andExpect(status().isNotFound());
+        perform(jai, get("/api/groups")).andExpect(jsonPath("$[0].budget").value(15000.0));
+
+        putJson(jai, "/api/groups/" + groupId + "/budget", "{\"budget\":null}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budget").doesNotExist());
+
+        // The unchanged re-save and the rejected requests are not logged
+        perform(jai, get("/api/groups/{id}/activity", groupId))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].type").value("BUDGET_UPDATED"))
+                .andExpect(jsonPath("$[0].amount").doesNotExist())
+                .andExpect(jsonPath("$[1].type").value("BUDGET_UPDATED"))
+                .andExpect(jsonPath("$[1].amount").value(15000.0));
+    }
+
     private static String share(long userId, String value) {
         return String.format("{\"userId\":%d,\"value\":%s}", userId, value);
     }
@@ -263,6 +293,10 @@ class ApiIntegrationTest {
 
     private ResultActions postJson(Session session, String url, String body) throws Exception {
         return perform(session, post(url).contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private ResultActions putJson(Session session, String url, String body) throws Exception {
+        return perform(session, put(url).contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     private JsonNode read(ResultActions result) throws Exception {

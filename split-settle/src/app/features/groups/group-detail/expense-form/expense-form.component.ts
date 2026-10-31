@@ -1,8 +1,10 @@
 import {
   Component,
+  DestroyRef,
   EventEmitter,
   HostListener,
   Input,
+  NgZone,
   OnInit,
   Output,
   computed,
@@ -17,6 +19,7 @@ import {
   Validators,
 } from "@angular/forms";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { debounceTime } from "rxjs/operators";
 import {
   ExpenseRequest,
   ExpenseService,
@@ -27,6 +30,8 @@ import {
   Expense,
   SplitType,
 } from "../../../../core/models/expense.model";
+import { suggestCategory } from "../../../../core/utils/category-suggest";
+import { parseSpokenExpense } from "../../../../core/utils/voice-expense";
 
 interface SplitRow {
   userId: number;
@@ -41,6 +46,35 @@ interface SplitStatus {
   text: string;
 }
 
+// Minimal shape of the Web Speech API (not in TypeScript's DOM types)
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  maxAlternatives: number;
+  onresult: ((event: SpeechResultEvent) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+interface SpeechResultEvent {
+  resultIndex: number;
+  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+
+function speechRecognitionCtor(): SpeechRecognitionCtor | null {
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
 @Component({
   selector: "app-expense-form",
   standalone: true,
@@ -51,11 +85,14 @@ interface SplitStatus {
 export class ExpenseFormComponent implements OnInit {
   private fb = inject(FormBuilder);
   private expenseService = inject(ExpenseService);
+  private zone = inject(NgZone);
 
   @Input({ required: true }) groupId!: number;
   @Input({ required: true }) members: GroupMember[] = [];
   @Input() currentUserId = 0;
   @Input() expense: Expense | null = null;
+  /** Earlier expenses in the group, used to learn category choices. */
+  @Input() history: readonly Expense[] = [];
 
   @Output() saved = new EventEmitter<Expense>();
   @Output() closed = new EventEmitter<void>();
@@ -79,6 +116,15 @@ export class ExpenseFormComponent implements OnInit {
   readonly amount = signal(0);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+
+  readonly autoCategory = signal(false);
+  private categoryPicked = false;
+
+  readonly speechSupported = speechRecognitionCtor() !== null;
+  readonly listening = signal(false);
+  readonly heard = signal<string | null>(null);
+  readonly voiceError = signal<string | null>(null);
+  private recognition: SpeechRecognitionLike | null = null;
 
   readonly status = computed<SplitStatus>(() => {
     const type = this.splitType();
@@ -131,10 +177,21 @@ export class ExpenseFormComponent implements OnInit {
     this.form.controls.amount.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((value) => this.amount.set(Number(value) || 0));
+    this.form.controls.description.valueChanges
+      .pipe(debounceTime(250), takeUntilDestroyed())
+      .subscribe((text) => this.autoPickCategory(text ?? ""));
+    inject(DestroyRef).onDestroy(() => this.recognition?.abort());
   }
 
   get isEdit(): boolean {
     return this.expense !== null;
+  }
+
+  get voiceExample(): string {
+    const other = this.members.find((m) => m.userId !== this.currentUserId);
+    return other
+      ? `“${other.name.split(" ")[0]} paid 1200 for dinner”`
+      : "“Paid 500 for groceries”";
   }
 
   ngOnInit(): void {
@@ -166,7 +223,86 @@ export class ExpenseFormComponent implements OnInit {
   @HostListener("document:keydown.escape")
   close(): void {
     if (!this.saving()) {
+      this.recognition?.abort();
       this.closed.emit();
+    }
+  }
+
+  pickCategory(category: string): void {
+    this.categoryPicked = true;
+    this.autoCategory.set(false);
+    this.form.controls.category.setValue(category);
+  }
+
+  toggleVoice(): void {
+    const active = this.recognition;
+    if (active) {
+      active.stop();
+      // A session still waiting for mic permission may never end on its own
+      setTimeout(() => {
+        if (this.recognition === active) {
+          active.abort();
+          this.recognition = null;
+          this.listening.set(false);
+        }
+      }, 1500);
+      return;
+    }
+    const Recognition = speechRecognitionCtor();
+    if (!Recognition) {
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = "en-IN";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    let finalText = "";
+    recognition.onresult = (event) =>
+      this.zone.run(() => {
+        if (this.recognition !== recognition) {
+          return;
+        }
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalText += result[0].transcript;
+          } else {
+            interim += result[0].transcript;
+          }
+        }
+        this.heard.set(`${finalText}${interim}`.trim() || null);
+      });
+    recognition.onerror = (event) =>
+      this.zone.run(() => {
+        if (this.recognition === recognition) {
+          this.voiceError.set(voiceErrorMessage(event.error));
+        }
+      });
+    recognition.onend = () =>
+      this.zone.run(() => {
+        if (this.recognition !== recognition) {
+          return;
+        }
+        this.listening.set(false);
+        this.recognition = null;
+        const text = (finalText || this.heard() || "").trim();
+        if (text) {
+          this.applySpoken(text);
+        }
+      });
+
+    this.heard.set(null);
+    this.voiceError.set(null);
+    try {
+      recognition.start();
+      this.recognition = recognition;
+      this.listening.set(true);
+    } catch {
+      this.voiceError.set(voiceErrorMessage("start-failed"));
     }
   }
 
@@ -254,6 +390,37 @@ export class ExpenseFormComponent implements OnInit {
     return row.userId;
   }
 
+  /** Fills the form from a spoken phrase; fields that weren't mentioned are left alone. */
+  applySpoken(text: string): void {
+    const spoken = parseSpokenExpense(text, this.members, this.currentUserId);
+    const controls = this.form.controls;
+    if (spoken.description) {
+      controls.description.setValue(spoken.description);
+      controls.description.markAsTouched();
+    }
+    if (spoken.amount !== null) {
+      controls.amount.setValue(spoken.amount);
+      controls.amount.markAsTouched();
+    }
+    if (spoken.payerId !== null) {
+      controls.paidBy.setValue(spoken.payerId);
+    }
+    if (spoken.amount === null && !spoken.description) {
+      this.voiceError.set(`Couldn't make that out. Try ${this.voiceExample}.`);
+    } else if (spoken.amount === null) {
+      this.voiceError.set("Didn't catch an amount. Type it in or try again.");
+    }
+  }
+
+  private autoPickCategory(text: string): void {
+    if (this.isEdit || this.categoryPicked) {
+      return;
+    }
+    const suggestion = suggestCategory(text, this.history);
+    this.form.controls.category.setValue(suggestion ?? "Other");
+    this.autoCategory.set(suggestion !== null);
+  }
+
   /** Seeds an even split for the people already selected, unless the user has typed values for this mode. */
   private prefill(type: SplitType): void {
     if (type === "EQUAL") {
@@ -314,4 +481,22 @@ function splitEvenly(total: number, parts: number): number[] {
 
 function formatHundredths(value: number): string {
   return (value / 100).toFixed(2).replace(/\.00$/, "");
+}
+
+function voiceErrorMessage(code: string): string | null {
+  switch (code) {
+    case "aborted":
+      return null;
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Microphone access is blocked. Allow it in your browser settings.";
+    case "no-speech":
+      return "Didn't hear anything. Tap the mic and try again.";
+    case "audio-capture":
+      return "No microphone found.";
+    case "network":
+      return "Voice input needs an internet connection.";
+    default:
+      return "Voice input didn't work. Try again.";
+  }
 }

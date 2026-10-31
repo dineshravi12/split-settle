@@ -24,6 +24,13 @@
         </div>
       </header>
 
+      <app-budget-meter
+        *ngIf="group.budget"
+        [budget]="group.budget"
+        [spent]="totalSpent"
+        (edit)="openBudgetSheet()"
+      ></app-budget-meter>
+
       <section class="members-section">
         <div class="section-row">
           <h2 class="section-heading">Members</h2>
@@ -46,7 +53,7 @@
         </div>
       </section>
 
-      <div class="tabs glass-card" role="tablist">
+      <div class="tabs glass-card" role="tablist" [style.--tab-count]="tabs.length">
         <button
           *ngFor="let t of tabs"
           type="button"
@@ -293,6 +300,23 @@
           [currentUserId]="currentUserId"
         ></app-activity-feed>
       </section>
+
+      <!-- Insights tab -->
+      <section *ngIf="activeTab() === 'insights'" class="tab-panel">
+        <app-skeleton-loader
+          *ngIf="loadingExpenses"
+          type="list"
+          [rows]="3"
+        ></app-skeleton-loader>
+        <app-group-insights
+          *ngIf="!loadingExpenses"
+          [expenses]="expenses"
+          [members]="group.members"
+          [currentUserId]="currentUserId"
+          [hasBudget]="!!group.budget"
+          (setBudget)="openBudgetSheet()"
+        ></app-group-insights>
+      </section>
     </ng-container>
   </ng-template>
 </div>
@@ -363,9 +387,20 @@
   [members]="group.members"
   [currentUserId]="currentUserId"
   [expense]="editingExpense"
+  [history]="expenses"
   (saved)="onExpenseSaved($event)"
   (closed)="closeExpenseForm()"
 ></app-expense-form>
+
+<!-- Budget sheet -->
+<app-budget-sheet
+  *ngIf="showBudgetSheet && group"
+  [groupId]="groupId"
+  [budget]="group.budget"
+  [spent]="totalSpent"
+  (saved)="onBudgetSaved($event)"
+  (closed)="closeBudgetSheet()"
+></app-budget-sheet>
 
 <!-- UPI pay sheet -->
 <app-upi-pay-sheet

@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -91,6 +93,24 @@ public class GroupService {
         return mapToDTO(group);
     }
 
+    /** A null budget removes it. Only real changes are logged. */
+    @Transactional
+    public GroupDTO updateBudget(Long groupId, BigDecimal budget, Long requesterId) {
+        groupAccess.requireMember(groupId, requesterId);
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
+
+        BigDecimal next = budget == null ? null : budget.setScale(2, RoundingMode.UNNECESSARY);
+        BigDecimal current = group.getBudget();
+        boolean unchanged = next == null ? current == null : current != null && current.compareTo(next) == 0;
+        if (!unchanged) {
+            group.setBudget(next);
+            activityService.record(group, userRepository.getReferenceById(requesterId), ActivityType.BUDGET_UPDATED,
+                    null, null, next);
+        }
+        return mapToDTO(group);
+    }
+
     private GroupDTO mapToDTO(Group group) {
         List<GroupMemberDTO> memberDTOs = group.getMembers() == null ? List.of() :
                 group.getMembers().stream()
@@ -100,6 +120,7 @@ public class GroupService {
         return GroupDTO.builder()
                 .id(group.getId())
                 .name(group.getName())
+                .budget(group.getBudget())
                 .members(memberDTOs)
                 .build();
     }

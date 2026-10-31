@@ -6,6 +6,8 @@ import com.splitsettle.api.security.UserPrincipal;
 import com.splitsettle.api.service.ActivityService;
 import com.splitsettle.api.service.GroupService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -14,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -51,11 +54,26 @@ public class GroupController {
         return ResponseEntity.ok(activityService.getGroupActivity(id, me.getId()));
     }
 
+    @PutMapping("/{id}/budget")
+    public ResponseEntity<GroupDTO> updateBudget(@PathVariable Long id,
+                                                 @Valid @RequestBody BudgetRequest request,
+                                                 @AuthenticationPrincipal UserPrincipal me) {
+        return ResponseEntity.ok(groupService.updateBudget(id, request.getBudget(), me.getId()));
+    }
+
     @lombok.Data
     public static class CreateGroupRequest {
         @NotBlank(message = "Group name is required")
         @Size(max = 100, message = "Group name must be at most 100 characters")
         private String name;
+    }
+
+    @lombok.Data
+    public static class BudgetRequest {
+        /** Null removes the budget. */
+        @DecimalMin(value = "0.01", message = "Budget must be greater than zero")
+        @Digits(integer = 8, fraction = 2, message = "Budget can have at most 2 decimal places")
+        private BigDecimal budget;
     }
 
     @lombok.Data

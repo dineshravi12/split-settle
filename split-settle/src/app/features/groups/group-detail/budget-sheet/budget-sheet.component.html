@@ -1,0 +1,73 @@
+<div class="sheet-backdrop" (click)="close()"></div>
+<div class="bottom-sheet budget-sheet" role="dialog" aria-labelledby="budgetTitle">
+  <div class="sheet-header">
+    <h2 id="budgetTitle">{{ budget ? "Edit budget" : "Set a budget" }}</h2>
+    <button type="button" class="icon-close" aria-label="Close" (click)="close()">
+      <i class="pi pi-times"></i>
+    </button>
+  </div>
+  <p class="sheet-tag muted">
+    Everyone in the group sees how much of it has been spent.
+    @if (spent > 0) {
+      So far: ₹{{ spent | number: "1.0-2" }}.
+    }
+  </p>
+
+  <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <div class="field" [class.filled]="control.value !== null">
+      <input
+        id="budgetAmount"
+        type="number"
+        formControlName="budget"
+        placeholder=" "
+        min="1"
+        step="1"
+        inputmode="numeric"
+      />
+      <label for="budgetAmount">Budget (₹)</label>
+      @if (control.touched && control.invalid) {
+        <small class="field-error">Enter a budget between ₹1 and ₹99,999,999</small>
+      }
+    </div>
+
+    <div class="chip-row">
+      @for (p of presets; track p) {
+        <button
+          type="button"
+          class="chip-btn"
+          [class.selected]="control.value === p"
+          (click)="usePreset(p)"
+        >
+          ₹{{ p | number }}
+        </button>
+      }
+    </div>
+
+    @if (error()) {
+      <p class="form-error" role="alert">{{ error() }}</p>
+    }
+
+    <div class="sheet-actions">
+      @if (budget) {
+        <button
+          type="button"
+          class="btn btn-ghost remove-btn"
+          [class.loading]="saving() === 'remove'"
+          [disabled]="!!saving()"
+          (click)="remove()"
+        >
+          <span class="label">Remove</span>
+        </button>
+      }
+      <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [class.loading]="saving() === 'save'"
+        [disabled]="!!saving()"
+      >
+        <span class="label">Save budget</span>
+      </button>
+    </div>
+  </form>
+</div>

@@ -8,6 +8,27 @@
   </div>
 
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="voice" *ngIf="speechSupported && !isEdit">
+      <button
+        type="button"
+        class="voice-btn"
+        [class.listening]="listening()"
+        [attr.aria-pressed]="listening()"
+        (click)="toggleVoice()"
+      >
+        <i class="pi" [class.pi-microphone]="!listening()" [class.pi-stop-circle]="listening()"></i>
+        {{ listening() ? "Listening… tap to stop" : "Say it instead" }}
+      </button>
+      <p class="voice-text" *ngIf="voiceError() as message; else transcript" role="alert">
+        {{ message }}
+      </p>
+      <ng-template #transcript>
+        <p class="voice-text" [class.heard]="heard()" aria-live="polite">
+          {{ heard() ? "“" + heard() + "”" : "Try " + voiceExample }}
+        </p>
+      </ng-template>
+    </div>
+
     <div class="field" [class.filled]="!!form.controls.description.value">
       <input
         id="expenseDesc"
@@ -45,14 +66,20 @@
       </small>
     </div>
 
-    <span class="stack-label">Category</span>
+    <span class="stack-label">
+      Category
+      <span class="auto-hint" *ngIf="autoCategory()">
+        <i class="pi pi-sparkles"></i> Auto-picked
+      </span>
+    </span>
     <div class="chip-row">
       <button
         type="button"
         *ngFor="let c of categories"
         class="chip-btn"
         [class.selected]="form.controls.category.value === c.value"
-        (click)="form.controls.category.setValue(c.value)"
+        [attr.aria-pressed]="form.controls.category.value === c.value"
+        (click)="pickCategory(c.value)"
       >
         <i class="pi" [class]="c.icon"></i>
         {{ c.label }}

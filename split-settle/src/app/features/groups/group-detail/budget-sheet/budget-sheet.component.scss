@@ -1,0 +1,19 @@
+@media (min-width: 768px) {
+  .budget-sheet {
+    max-width: 460px;
+  }
+}
+
+.remove-btn {
+  margin-right: auto;
+  color: var(--danger);
+}
+
+.form-error {
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 0.85rem;
+}

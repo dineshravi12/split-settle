@@ -33,8 +33,11 @@ import { FabComponent } from "../../../shared/components/fab/fab.component";
 import { ExpenseFormComponent } from "./expense-form/expense-form.component";
 import { ActivityFeedComponent } from "./activity-feed/activity-feed.component";
 import { UpiPaySheetComponent } from "./upi-pay-sheet/upi-pay-sheet.component";
+import { BudgetMeterComponent } from "./budget-meter/budget-meter.component";
+import { BudgetSheetComponent } from "./budget-sheet/budget-sheet.component";
+import { GroupInsightsComponent } from "./group-insights/group-insights.component";
 
-type TabKey = "expenses" | "balances" | "activity";
+type TabKey = "expenses" | "balances" | "activity" | "insights";
 
 interface ConfettiPiece {
   left: number;
@@ -62,6 +65,9 @@ interface ShareInfo {
     ExpenseFormComponent,
     ActivityFeedComponent,
     UpiPaySheetComponent,
+    BudgetMeterComponent,
+    BudgetSheetComponent,
+    GroupInsightsComponent,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: "./group-detail.component.html",
@@ -102,6 +108,7 @@ export class GroupDetailComponent implements OnInit {
     { key: "expenses", label: "Expenses", icon: "pi-wallet" },
     { key: "balances", label: "Balances", icon: "pi-arrow-right-arrow-left" },
     { key: "activity", label: "Activity", icon: "pi-history" },
+    { key: "insights", label: "Insights", icon: "pi-chart-pie" },
   ];
 
   groupId = 0;
@@ -110,6 +117,7 @@ export class GroupDetailComponent implements OnInit {
   group: Group | null = null;
 
   expenses: Expense[] = [];
+  totalSpent = 0;
   loadingExpenses = false;
   settlements: Settlement[] = [];
   loadingSettlements = false;
@@ -126,6 +134,7 @@ export class GroupDetailComponent implements OnInit {
 
   showExpenseForm = false;
   editingExpense: Expense | null = null;
+  showBudgetSheet = false;
 
   settling: { [key: string]: boolean } = {};
   settlingAll = false;
@@ -189,6 +198,7 @@ export class GroupDetailComponent implements OnInit {
     this.expenseService.getExpenses(this.groupId).subscribe({
       next: (expenses) => {
         this.expenses = expenses;
+        this.totalSpent = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
         this.loadingExpenses = false;
       },
       error: () => {
@@ -529,6 +539,29 @@ export class GroupDetailComponent implements OnInit {
 
   isSettling(s: Settlement): boolean {
     return !!this.settling[this.settlementKey(s)];
+  }
+
+  // Budget
+  openBudgetSheet(): void {
+    this.showBudgetSheet = true;
+  }
+
+  closeBudgetSheet(): void {
+    this.showBudgetSheet = false;
+  }
+
+  onBudgetSaved(group: Group): void {
+    const removed = group.budget === null;
+    this.group = group;
+    this.showBudgetSheet = false;
+    this.messageService.add({
+      severity: "success",
+      summary: removed ? "Budget removed" : "Budget saved",
+      detail: removed
+        ? "This group no longer has a budget"
+        : `Budget set to ₹${group.budget?.toLocaleString("en-US")}`,
+    });
+    this.refreshActivity();
   }
 
   // Payments & sharing

@@ -20,6 +20,7 @@ const ICONS: Record<ActivityType, string> = {
   EXPENSE_UPDATED: "pi-pencil",
   EXPENSE_DELETED: "pi-trash",
   PAYMENT_RECORDED: "pi-check",
+  BUDGET_UPDATED: "pi-bullseye",
 };
 
 const TONES: Record<ActivityType, string> = {
@@ -29,6 +30,7 @@ const TONES: Record<ActivityType, string> = {
   EXPENSE_UPDATED: "warning",
   EXPENSE_DELETED: "danger",
   PAYMENT_RECORDED: "success",
+  BUDGET_UPDATED: "accent",
 };
 
 @Component({
@@ -80,6 +82,8 @@ export class ActivityFeedComponent implements OnChanges {
         return `deleted “${a.description}”`;
       case "PAYMENT_RECORDED":
         return `paid ${target}`;
+      case "BUDGET_UPDATED":
+        return a.amount === null ? "removed the budget" : "set the budget";
     }
   }
 }

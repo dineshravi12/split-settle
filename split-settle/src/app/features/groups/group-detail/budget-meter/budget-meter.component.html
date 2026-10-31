@@ -1,0 +1,35 @@
+<button
+  type="button"
+  class="meter glass-card"
+  [class]="'tone-' + tone()"
+  (click)="edit.emit()"
+  aria-label="Edit group budget"
+>
+  <span class="meter-top">
+    <span class="meter-label"><i class="pi pi-bullseye"></i> Budget</span>
+    <span class="meter-figures">
+      <strong>₹{{ spent() | number: "1.0-0" }}</strong> of ₹{{ budget() | number: "1.0-0" }}
+    </span>
+  </span>
+  <span
+    class="track"
+    role="progressbar"
+    aria-label="Budget used"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="ariaNow()"
+    [attr.aria-valuetext]="(percent() | number: '1.0-0') + '% used'"
+  >
+    <span class="bar" [style.transform]="'scaleX(' + ratio() + ')'"></span>
+  </span>
+  <span class="meter-bottom">
+    <span>{{ percent() | number: "1.0-0" }}% used</span>
+    <span class="status">
+      @if (remaining() >= 0) {
+        ₹{{ remaining() | number: "1.0-0" }} left
+      } @else {
+        ₹{{ -remaining() | number: "1.0-0" }} over budget
+      }
+    </span>
+  </span>
+</button>

@@ -1,0 +1,107 @@
+:host {
+  display: block;
+  margin: -0.5rem 0 1.5rem;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.meter:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.meter:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.meter-top,
+.meter-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.meter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.meter-figures {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-figures strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.track {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-light);
+  overflow: hidden;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-gradient);
+  transform-origin: left center;
+  transition:
+    transform 700ms var(--ease-out),
+    background var(--duration) var(--ease);
+  animation: fill-in 900ms var(--ease-out);
+}
+
+@keyframes fill-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.meter-bottom {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.status {
+  font-weight: 600;
+  color: var(--success);
+}
+
+.tone-warn .bar {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.tone-warn .status {
+  color: var(--warning);
+}
+
+.tone-over .bar {
+  background: var(--danger-gradient);
+}
+
+.tone-over .status {
+  color: var(--danger);
+}
