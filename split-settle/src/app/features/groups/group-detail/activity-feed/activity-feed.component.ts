@@ -1,6 +1,7 @@
 import { Component, Input, OnChanges } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { Activity, ActivityType } from "../../../../core/models/activity.model";
+import { activityAction } from "../../../../core/utils/activity-text";
 
 interface FeedEntry {
   id: number;
@@ -55,7 +56,7 @@ export class ActivityFeedComponent implements OnChanges {
         icon: ICONS[a.type],
         tone: TONES[a.type],
         actor: a.actorId === this.currentUserId ? "You" : a.actorName,
-        action: this.describe(a),
+        action: activityAction(a, this.currentUserId),
         amount: a.amount,
         when: timeAgo(at.getTime(), now),
         exactTime: at.toLocaleString(),
@@ -65,26 +66,6 @@ export class ActivityFeedComponent implements OnChanges {
 
   trackById(_: number, entry: FeedEntry): number {
     return entry.id;
-  }
-
-  private describe(a: Activity): string {
-    const target = a.targetId === this.currentUserId ? "you" : (a.targetName ?? "someone");
-    switch (a.type) {
-      case "GROUP_CREATED":
-        return "created the group";
-      case "MEMBER_ADDED":
-        return `added ${target}`;
-      case "EXPENSE_ADDED":
-        return `added “${a.description}”`;
-      case "EXPENSE_UPDATED":
-        return `edited “${a.description}”`;
-      case "EXPENSE_DELETED":
-        return `deleted “${a.description}”`;
-      case "PAYMENT_RECORDED":
-        return `paid ${target}`;
-      case "BUDGET_UPDATED":
-        return a.amount === null ? "removed the budget" : "set the budget";
-    }
   }
 }
 

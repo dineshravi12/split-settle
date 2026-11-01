@@ -20,7 +20,19 @@
         </div>
         <div class="group-heading">
           <h1 class="page-heading">{{ group.name }}</h1>
-          <p class="muted">{{ group.members.length }} members</p>
+          <p class="muted">
+            {{ group.members.length }} members
+            <span
+              *ngIf="liveStatus() === 'live'"
+              class="live"
+              title="Changes from other members show up instantly"
+            >
+              <span class="live-dot"></span>Live
+            </span>
+            <span *ngIf="liveStatus() === 'reconnecting'" class="live offline">
+              <span class="live-dot"></span>Reconnecting…
+            </span>
+          </p>
         </div>
       </header>
 

@@ -1,5 +1,6 @@
-import { Component, OnInit, computed, inject, signal } from "@angular/core";
+import { Component, DestroyRef, OnInit, computed, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router } from "@angular/router";
 import {
   FormBuilder,
@@ -23,7 +24,13 @@ import { ExpenseService } from "../../../core/services/expense.service";
 import { SettlementService } from "../../../core/services/settlement.service";
 import { AuthService } from "../../../core/services/auth.service";
 import { UserService } from "../../../core/services/user.service";
+import {
+  GroupLiveEvent,
+  LiveStatus,
+  RealtimeService,
+} from "../../../core/services/realtime.service";
 import { whatsAppShareLink } from "../../../core/utils/payment-links";
+import { activityAction } from "../../../core/utils/activity-text";
 import { Group } from "../../../core/models/group.model";
 import { EXPENSE_CATEGORIES, Expense } from "../../../core/models/expense.model";
 import { Settlement } from "../../../core/models/settlement.model";
@@ -38,6 +45,17 @@ import { BudgetSheetComponent } from "./budget-sheet/budget-sheet.component";
 import { GroupInsightsComponent } from "./group-insights/group-insights.component";
 
 type TabKey = "expenses" | "balances" | "activity" | "insights";
+type RefreshPart = "group" | "expenses" | "settlements" | "activity";
+
+const REFRESH_ON: Record<Activity["type"], RefreshPart[]> = {
+  GROUP_CREATED: ["group"],
+  MEMBER_ADDED: ["group", "settlements"],
+  EXPENSE_ADDED: ["expenses", "settlements"],
+  EXPENSE_UPDATED: ["expenses", "settlements"],
+  EXPENSE_DELETED: ["expenses", "settlements"],
+  PAYMENT_RECORDED: ["settlements"],
+  BUDGET_UPDATED: ["group"],
+};
 
 interface ConfettiPiece {
   left: number;
@@ -101,6 +119,8 @@ export class GroupDetailComponent implements OnInit {
   private settlementService = inject(SettlementService);
   private authService = inject(AuthService);
   private userService = inject(UserService);
+  private realtime = inject(RealtimeService);
+  private destroyRef = inject(DestroyRef);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
 
@@ -119,11 +139,18 @@ export class GroupDetailComponent implements OnInit {
   expenses: Expense[] = [];
   totalSpent = 0;
   loadingExpenses = false;
+  private expensesLoaded = false;
   settlements: Settlement[] = [];
   loadingSettlements = false;
+  private settlementsLoaded = false;
   activities: Activity[] = [];
   loadingActivity = false;
   private activityLoaded = false;
+
+  readonly liveStatus = signal<LiveStatus | null>(null);
+  private pendingRefresh = new Set<RefreshPart>();
+  private pendingActivities: Activity[] = [];
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   activeTab = signal<TabKey>("expenses");
   tabIndex = computed(() => this.tabs.findIndex((t) => t.key === this.activeTab()));
@@ -173,6 +200,15 @@ export class GroupDetailComponent implements OnInit {
       next: (me) => (this.myUpiId = me.upiId),
       error: () => (this.myUpiId = null),
     });
+    this.realtime
+      .watchGroup(this.groupId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => this.onLiveEvent(event));
+    this.destroyRef.onDestroy(() => {
+      if (this.refreshTimer) {
+        clearTimeout(this.refreshTimer);
+      }
+    });
   }
 
   loadGroup(): void {
@@ -194,11 +230,13 @@ export class GroupDetailComponent implements OnInit {
   }
 
   loadExpenses(): void {
-    this.loadingExpenses = true;
+    // Skeletons only on first load; later refreshes swap data in place
+    this.loadingExpenses = !this.expensesLoaded;
     this.expenseService.getExpenses(this.groupId).subscribe({
       next: (expenses) => {
         this.expenses = expenses;
         this.totalSpent = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+        this.expensesLoaded = true;
         this.loadingExpenses = false;
       },
       error: () => {
@@ -208,11 +246,12 @@ export class GroupDetailComponent implements OnInit {
   }
 
   loadSettlements(): void {
-    this.loadingSettlements = true;
+    this.loadingSettlements = !this.settlementsLoaded;
     this.settlementService.getSettlements(this.groupId).subscribe({
       next: (settlements) => {
         const prev = this.prevSettlementCount;
         this.settlements = settlements;
+        this.settlementsLoaded = true;
         this.loadingSettlements = false;
         if (prev > 0 && settlements.length === 0) {
           this.launchConfetti();
@@ -226,7 +265,7 @@ export class GroupDetailComponent implements OnInit {
   }
 
   loadActivity(): void {
-    this.loadingActivity = true;
+    this.loadingActivity = !this.activityLoaded;
     this.groupService.getActivity(this.groupId).subscribe({
       next: (activities) => {
         this.activities = activities;
@@ -619,6 +658,69 @@ export class GroupDetailComponent implements OnInit {
     this.loadExpenses();
     this.loadSettlements();
     this.refreshActivity();
+  }
+
+  // Live updates
+  private onLiveEvent(event: GroupLiveEvent): void {
+    switch (event.kind) {
+      case "status":
+        this.liveStatus.set(event.status);
+        return;
+      case "resync":
+        this.queueRefresh(["group", "expenses", "settlements", "activity"]);
+        return;
+      case "activity":
+        if (event.activity.actorId !== this.currentUserId) {
+          this.pendingActivities.push(event.activity);
+        }
+        this.queueRefresh([...REFRESH_ON[event.activity.type], "activity"]);
+    }
+  }
+
+  /** Coalesces bursts (e.g. someone settling several balances at once) into one refetch and one toast. */
+  private queueRefresh(parts: RefreshPart[]): void {
+    parts.forEach((p) => this.pendingRefresh.add(p));
+    this.refreshTimer ??= setTimeout(() => this.flushLiveUpdates(), 400);
+  }
+
+  private flushLiveUpdates(): void {
+    const parts = this.pendingRefresh;
+    const activities = this.pendingActivities;
+    this.pendingRefresh = new Set();
+    this.pendingActivities = [];
+    this.refreshTimer = null;
+
+    if (parts.has("group")) {
+      this.groupService.getGroup(this.groupId).subscribe((group) => (this.group = group));
+    }
+    if (parts.has("expenses")) {
+      this.loadExpenses();
+    }
+    if (parts.has("settlements")) {
+      this.loadSettlements();
+    }
+    if (parts.has("activity")) {
+      this.refreshActivity();
+    }
+
+    if (activities.length === 1) {
+      const [a] = activities;
+      this.messageService.add({
+        severity: "info",
+        summary: "Just now",
+        detail: `${a.actorName} ${activityAction(a, this.currentUserId)}`,
+        life: 4000,
+      });
+    } else if (activities.length > 1) {
+      const names = [...new Set(activities.map((a) => a.actorName))];
+      const who = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+      this.messageService.add({
+        severity: "info",
+        summary: "Just now",
+        detail: `${activities.length} updates from ${who}`,
+        life: 4000,
+      });
+    }
   }
 
   private launchConfetti(): void {

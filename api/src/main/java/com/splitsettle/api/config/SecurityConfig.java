@@ -43,6 +43,8 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/error", "/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // WebSocket handshake; the STOMP CONNECT frame carries the JWT (see StompAuthInterceptor)
+                .requestMatchers("/ws").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

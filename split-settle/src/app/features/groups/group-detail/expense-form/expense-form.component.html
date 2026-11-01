@@ -8,23 +8,48 @@
   </div>
 
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    <div class="voice" *ngIf="speechSupported && !isEdit">
-      <button
-        type="button"
-        class="voice-btn"
-        [class.listening]="listening()"
-        [attr.aria-pressed]="listening()"
-        (click)="toggleVoice()"
-      >
-        <i class="pi" [class.pi-microphone]="!listening()" [class.pi-stop-circle]="listening()"></i>
-        {{ listening() ? "Listening… tap to stop" : "Say it instead" }}
-      </button>
-      <p class="voice-text" *ngIf="voiceError() as message; else transcript" role="alert">
+    <div class="quick-fill" *ngIf="!isEdit">
+      <div class="quick-actions">
+        <button
+          *ngIf="speechSupported"
+          type="button"
+          class="quick-btn"
+          [class.listening]="listening()"
+          [attr.aria-pressed]="listening()"
+          [disabled]="!!scan()"
+          (click)="toggleVoice()"
+        >
+          <i class="pi" [class.pi-microphone]="!listening()" [class.pi-stop-circle]="listening()"></i>
+          {{ listening() ? "Listening… tap to stop" : "Say it" }}
+        </button>
+        <button
+          *ngIf="!scan(); else scanning"
+          type="button"
+          class="quick-btn"
+          [disabled]="listening()"
+          (click)="receiptInput.click()"
+        >
+          <i class="pi pi-camera"></i> Scan receipt
+        </button>
+        <ng-template #scanning>
+          <button type="button" class="quick-btn busy" (click)="cancelScan()">
+            <i class="pi pi-spin pi-spinner"></i> Cancel scan
+          </button>
+        </ng-template>
+        <input
+          #receiptInput
+          type="file"
+          accept="image/*"
+          hidden
+          (change)="scanReceipt(receiptInput)"
+        />
+      </div>
+      <p class="quick-text" *ngIf="quickError() as message; else note" role="alert">
         {{ message }}
       </p>
-      <ng-template #transcript>
-        <p class="voice-text" [class.heard]="heard()" aria-live="polite">
-          {{ heard() ? "“" + heard() + "”" : "Try " + voiceExample }}
+      <ng-template #note>
+        <p class="quick-text" [class.active]="quickNote()" aria-live="polite">
+          {{ quickNote() ?? (speechSupported ? "Try " + voiceExample + ", or scan the bill" : "Scan the bill to fill this in") }}
         </p>
       </ng-template>
     </div>

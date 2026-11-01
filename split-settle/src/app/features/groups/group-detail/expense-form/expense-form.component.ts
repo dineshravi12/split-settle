@@ -32,6 +32,10 @@ import {
 } from "../../../../core/models/expense.model";
 import { suggestCategory } from "../../../../core/utils/category-suggest";
 import { parseSpokenExpense } from "../../../../core/utils/voice-expense";
+import {
+  ReceiptScannerService,
+  ScanStage,
+} from "../../../../core/services/receipt-scanner.service";
 
 interface SplitRow {
   userId: number;
@@ -85,6 +89,7 @@ function speechRecognitionCtor(): SpeechRecognitionCtor | null {
 export class ExpenseFormComponent implements OnInit {
   private fb = inject(FormBuilder);
   private expenseService = inject(ExpenseService);
+  private receiptScanner = inject(ReceiptScannerService);
   private zone = inject(NgZone);
 
   @Input({ required: true }) groupId!: number;
@@ -123,8 +128,24 @@ export class ExpenseFormComponent implements OnInit {
   readonly speechSupported = speechRecognitionCtor() !== null;
   readonly listening = signal(false);
   readonly heard = signal<string | null>(null);
-  readonly voiceError = signal<string | null>(null);
+  /** Problems from voice input or receipt scanning, shown in the quick-fill row. */
+  readonly quickError = signal<string | null>(null);
   private recognition: SpeechRecognitionLike | null = null;
+
+  readonly scan = signal<{ stage: ScanStage; percent: number } | null>(null);
+  readonly scanResult = signal<string | null>(null);
+  private scanAbort: AbortController | null = null;
+
+  readonly quickNote = computed(() => {
+    const scan = this.scan();
+    if (scan) {
+      return scan.stage === "reading"
+        ? `Reading receipt… ${scan.percent}%`
+        : "Getting the scanner ready…";
+    }
+    const heard = this.heard();
+    return heard ? `“${heard}”` : (this.scanResult() ?? null);
+  });
 
   readonly status = computed<SplitStatus>(() => {
     const type = this.splitType();
@@ -180,7 +201,10 @@ export class ExpenseFormComponent implements OnInit {
     this.form.controls.description.valueChanges
       .pipe(debounceTime(250), takeUntilDestroyed())
       .subscribe((text) => this.autoPickCategory(text ?? ""));
-    inject(DestroyRef).onDestroy(() => this.recognition?.abort());
+    inject(DestroyRef).onDestroy(() => {
+      this.recognition?.abort();
+      this.scanAbort?.abort();
+    });
   }
 
   get isEdit(): boolean {
@@ -224,6 +248,7 @@ export class ExpenseFormComponent implements OnInit {
   close(): void {
     if (!this.saving()) {
       this.recognition?.abort();
+      this.scanAbort?.abort();
       this.closed.emit();
     }
   }
@@ -279,7 +304,7 @@ export class ExpenseFormComponent implements OnInit {
     recognition.onerror = (event) =>
       this.zone.run(() => {
         if (this.recognition === recognition) {
-          this.voiceError.set(voiceErrorMessage(event.error));
+          this.quickError.set(voiceErrorMessage(event.error));
         }
       });
     recognition.onend = () =>
@@ -296,14 +321,72 @@ export class ExpenseFormComponent implements OnInit {
       });
 
     this.heard.set(null);
-    this.voiceError.set(null);
+    this.scanResult.set(null);
+    this.quickError.set(null);
     try {
       recognition.start();
       this.recognition = recognition;
       this.listening.set(true);
     } catch {
-      this.voiceError.set(voiceErrorMessage("start-failed"));
+      this.quickError.set(voiceErrorMessage("start-failed"));
     }
+  }
+
+  async scanReceipt(input: HTMLInputElement): Promise<void> {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || this.scan()) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      this.quickError.set("That isn't a photo. Pick an image of the receipt.");
+      return;
+    }
+
+    const abort = new AbortController();
+    this.scanAbort = abort;
+    this.heard.set(null);
+    this.scanResult.set(null);
+    this.quickError.set(null);
+    this.scan.set({ stage: "preparing", percent: 0 });
+    try {
+      const receipt = await this.receiptScanner.scan(
+        file,
+        (stage, fraction) =>
+          this.zone.run(() => this.scan.set({ stage, percent: Math.round(fraction * 100) })),
+        abort.signal,
+      );
+      if (abort.signal.aborted) {
+        return;
+      }
+      const controls = this.form.controls;
+      if (receipt.merchant && !controls.description.value?.trim()) {
+        controls.description.setValue(receipt.merchant);
+        controls.description.markAsTouched();
+      }
+      if (receipt.amount !== null) {
+        controls.amount.setValue(receipt.amount);
+        controls.amount.markAsTouched();
+        const at = receipt.merchant ? ` at ${receipt.merchant}` : "";
+        const amount = receipt.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        this.scanResult.set(`Found ₹${amount}${at}. Check it before saving.`);
+      } else {
+        this.quickError.set("Couldn't find the total on that receipt. Type the amount in.");
+      }
+    } catch {
+      if (!abort.signal.aborted) {
+        this.quickError.set("Couldn't read that receipt. Try a sharper, well-lit photo.");
+      }
+    } finally {
+      if (this.scanAbort === abort) {
+        this.scanAbort = null;
+        this.scan.set(null);
+      }
+    }
+  }
+
+  cancelScan(): void {
+    this.scanAbort?.abort();
   }
 
   setSplitType(type: SplitType): void {
@@ -406,9 +489,9 @@ export class ExpenseFormComponent implements OnInit {
       controls.paidBy.setValue(spoken.payerId);
     }
     if (spoken.amount === null && !spoken.description) {
-      this.voiceError.set(`Couldn't make that out. Try ${this.voiceExample}.`);
+      this.quickError.set(`Couldn't make that out. Try ${this.voiceExample}.`);
     } else if (spoken.amount === null) {
-      this.voiceError.set("Didn't catch an amount. Type it in or try again.");
+      this.quickError.set("Didn't catch an amount. Type it in or try again.");
     }
   }
 
